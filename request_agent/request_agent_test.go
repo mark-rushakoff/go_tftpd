@@ -60,7 +60,58 @@ func TestAcknowledgementPacketCausesAck(t *testing.T) {
 }
 
 func TestErrorPacketCausesError(t *testing.T) {
-	t.Skipf("Pending")
+	const blockNum uint16 = 3456
+
+	conn := &helpers.MockPacketConn{}
+	wasCalledOnce := false
+	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
+		if wasCalledOnce {
+			// block forever
+			select {}
+		}
+		var data = []interface{}{
+			uint16(messages.ErrorOpcode),
+			uint16(messages.FileNotFound),
+			string("lol"),
+			byte(0),
+		}
+
+		buf := new(bytes.Buffer)
+		for _, v := range data {
+			str, isString := v.(string)
+			if isString {
+				_, err := buf.WriteString(str)
+				if err != nil {
+					t.Errorf("Failed to write string to buffer")
+				}
+			} else {
+				err := binary.Write(buf, binary.BigEndian, v)
+				if err != nil {
+					t.Errorf("Failed to write data to buffer")
+				}
+			}
+		}
+		n := copy(b, buf.Bytes())
+		return n, nil, nil
+	}
+
+	agent := NewRequestAgent(conn)
+	go agent.Read()
+
+	select {
+	case errorPacket := <-agent.Error:
+		expectedCode := messages.FileNotFound
+		if errorPacket.Code != expectedCode {
+			t.Errorf("Received code %v, expected %v", errorPacket.Code, expectedCode)
+		}
+
+		expectedMessage := "lol"
+		if errorPacket.Message != expectedMessage {
+			t.Errorf("Received message %v, expected %v", errorPacket.Message, expectedMessage)
+		}
+	case <-time.After(timeoutMs * time.Millisecond):
+		t.Errorf("Did not receive Error in time")
+	}
 }
 
 func TestDataPacketCausesData(t *testing.T) {

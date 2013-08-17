@@ -46,6 +46,8 @@ func (a *RequestAgent) Read() {
 		go a.handleAck(b)
 	case messages.DataOpcode:
 		go a.handleData(b)
+	case messages.ErrorOpcode:
+		go a.handleError(b)
 	default:
 		panic(fmt.Sprintf("Unknown opcode: %v", opcode))
 	}
@@ -70,4 +72,16 @@ func (a *RequestAgent) handleData(b []byte) {
 	}
 	data := b[4:]
 	a.Data <- &messages.Data{blockNum, data}
+}
+
+func (a *RequestAgent) handleError(b []byte) {
+	codeBuf := bytes.NewBuffer(b[2:4])
+	var code uint16
+	err := binary.Read(codeBuf, binary.BigEndian, &code)
+	if err != nil {
+		panic(fmt.Sprintf("Error while reading code from packet: %v", err))
+	}
+
+	message := string(b[4 : len(b)-1]) // chop nul byte at end
+	a.Error <- &messages.Error{messages.ErrorCode(code), message}
 }
