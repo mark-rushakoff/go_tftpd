@@ -160,7 +160,59 @@ func TestDataPacketCausesData(t *testing.T) {
 }
 
 func TestReadRequestPacketCausesReadRequest(t *testing.T) {
-	t.Skipf("Pending")
+	const blockNum uint16 = 9876
+
+	conn := &helpers.MockPacketConn{}
+	wasCalledOnce := false
+	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
+		if wasCalledOnce {
+			// block forever
+			select {}
+		}
+		var data = []interface{}{
+			uint16(messages.ReadOpcode),
+			string("/foo/bar"),
+			byte(0),
+			string("netascii"),
+			byte(0),
+		}
+
+		buf := new(bytes.Buffer)
+		for _, v := range data {
+			str, isString := v.(string)
+			if isString {
+				_, err := buf.WriteString(str)
+				if err != nil {
+					t.Errorf("Failed to write string to buffer")
+				}
+			} else {
+				err := binary.Write(buf, binary.BigEndian, v)
+				if err != nil {
+					t.Errorf("Failed to write data to buffer")
+				}
+			}
+		}
+		n := copy(b, buf.Bytes())
+		return n, nil, nil
+	}
+
+	agent := NewRequestAgent(conn)
+	go agent.Read()
+
+	select {
+	case readPacket := <-agent.ReadRequest:
+		expectedFilename := "/foo/bar"
+		if readPacket.Filename != expectedFilename {
+			t.Errorf("Received name %v, expected %v", readPacket.Filename, expectedFilename)
+		}
+
+		expectedMode := messages.NetAscii
+		if readPacket.Mode != expectedMode {
+			t.Errorf("Received mode %v, expected %v", readPacket.Mode, expectedMode)
+		}
+	case <-time.After(timeoutMs * time.Millisecond):
+		t.Errorf("Did not receive Read in time")
+	}
 }
 
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {

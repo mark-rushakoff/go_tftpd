@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/mark-rushakoff/go_tftpd/messages"
 )
@@ -46,6 +47,8 @@ func (a *RequestAgent) Read() {
 		go a.handleAck(b)
 	case messages.DataOpcode:
 		go a.handleData(b)
+	case messages.ReadOpcode:
+		go a.handleRead(b)
 	case messages.ErrorOpcode:
 		go a.handleError(b)
 	default:
@@ -84,4 +87,20 @@ func (a *RequestAgent) handleError(b []byte) {
 
 	message := string(b[4 : len(b)-1]) // chop nul byte at end
 	a.Error <- &messages.Error{messages.ErrorCode(code), message}
+}
+
+func (a *RequestAgent) handleRead(b []byte) {
+	remaining := b[2:]
+	nulIndex := bytes.IndexByte(remaining, 0)
+	if nulIndex == -1 {
+		panic("Could not find nul-terminator in Read request")
+	}
+	fileName := string(remaining[:nulIndex])
+
+	modeStr := string(remaining[nulIndex+1 : len(remaining)-1])
+	if strings.ToLower(modeStr) == "netascii" {
+		a.ReadRequest <- &messages.ReadRequest{fileName, messages.NetAscii}
+	} else {
+		panic(fmt.Sprintf("Unrecognized mode in read request: %v", modeStr))
+	}
 }
