@@ -109,7 +109,30 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 }
 
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
-	t.Skipf("Pending")
+	const blockNum uint16 = 2468
+
+	agent := agentWithIncomingPacket(t, []interface{}{
+		uint16(messages.WriteOpcode),
+		string("/foo/bar"),
+		byte(0),
+		string("netascii"),
+		byte(0),
+	})
+
+	select {
+	case writePacket := <-agent.WriteRequest:
+		expectedFilename := "/foo/bar"
+		if writePacket.Filename != expectedFilename {
+			t.Errorf("Received name %v, expected %v", writePacket.Filename, expectedFilename)
+		}
+
+		expectedMode := messages.NetAscii
+		if writePacket.Mode != expectedMode {
+			t.Errorf("Received mode %v, expected %v", writePacket.Mode, expectedMode)
+		}
+	case <-time.After(timeoutMs * time.Millisecond):
+		t.Errorf("Did not receive Read in time")
+	}
 }
 
 func agentWithIncomingPacket(t *testing.T, data []interface{}) *RequestAgent {

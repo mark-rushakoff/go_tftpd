@@ -49,6 +49,8 @@ func (a *RequestAgent) Read() {
 		go a.handleData(b)
 	case messages.ReadOpcode:
 		go a.handleRead(b)
+	case messages.WriteOpcode:
+		go a.handleWrite(b)
 	case messages.ErrorOpcode:
 		go a.handleError(b)
 	default:
@@ -90,17 +92,29 @@ func (a *RequestAgent) handleError(b []byte) {
 }
 
 func (a *RequestAgent) handleRead(b []byte) {
+	filename, readWriteMode := readWriteRequestContent(b)
+	a.ReadRequest <- &messages.ReadRequest{filename, readWriteMode}
+}
+
+func (a *RequestAgent) handleWrite(b []byte) {
+	filename, readWriteMode := readWriteRequestContent(b)
+	a.WriteRequest <- &messages.WriteRequest{filename, readWriteMode}
+}
+
+func readWriteRequestContent(b []byte) (filename string, readWriteMode messages.ReadWriteMode) {
 	remaining := b[2:]
 	nulIndex := bytes.IndexByte(remaining, 0)
 	if nulIndex == -1 {
-		panic("Could not find nul-terminator in Read request")
+		panic("Could not find nul-terminator in request")
 	}
-	fileName := string(remaining[:nulIndex])
+	filename = string(remaining[:nulIndex])
 
 	modeStr := string(remaining[nulIndex+1 : len(remaining)-1])
 	if strings.ToLower(modeStr) == "netascii" {
-		a.ReadRequest <- &messages.ReadRequest{fileName, messages.NetAscii}
+		readWriteMode = messages.NetAscii
 	} else {
-		panic(fmt.Sprintf("Unrecognized mode in read request: %v", modeStr))
+		panic(fmt.Sprintf("Unrecognized mode in request: %v", modeStr))
 	}
+
+	return
 }
