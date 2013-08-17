@@ -30,8 +30,10 @@ func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 }
 
 func (a *RequestAgent) Read() {
-	b := make([]byte, 10)
-	a.conn.ReadFrom(b)
+	const maxPacketSize = 516
+	b := make([]byte, maxPacketSize)
+	bytesRead, _, _ := a.conn.ReadFrom(b)
+	b = b[:bytesRead]
 	opcodeBuf := bytes.NewBuffer(b[0:2])
 	var opcode uint16
 	err := binary.Read(opcodeBuf, binary.BigEndian, &opcode)
@@ -42,6 +44,8 @@ func (a *RequestAgent) Read() {
 	switch opcode {
 	case messages.AckOpcode:
 		go a.handleAck(b)
+	case messages.DataOpcode:
+		go a.handleData(b)
 	default:
 		panic(fmt.Sprintf("Unknown opcode: %v", opcode))
 	}
@@ -55,4 +59,15 @@ func (a *RequestAgent) handleAck(b []byte) {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
 	a.Ack <- &messages.Ack{blockNum}
+}
+
+func (a *RequestAgent) handleData(b []byte) {
+	blockNumBuf := bytes.NewBuffer(b[2:4])
+	var blockNum uint16
+	err := binary.Read(blockNumBuf, binary.BigEndian, &blockNum)
+	if err != nil {
+		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
+	}
+	data := b[4:]
+	a.Data <- &messages.Data{blockNum, data}
 }
