@@ -16,14 +16,10 @@ const timeoutMs = 100
 func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	const blockNum uint16 = 1234
 
-	conn := &helpers.MockPacketConn{}
-	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+	agent := agentWithIncomingPacket(t, []interface{}{
 		uint16(messages.AckOpcode),
 		uint16(blockNum),
 	})
-
-	agent := NewRequestAgent(conn)
-	go agent.Read()
 
 	select {
 	case ack := <-agent.Ack:
@@ -38,16 +34,12 @@ func TestAcknowledgementPacketCausesAck(t *testing.T) {
 func TestErrorPacketCausesError(t *testing.T) {
 	const blockNum uint16 = 3456
 
-	conn := &helpers.MockPacketConn{}
-	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+	agent := agentWithIncomingPacket(t, []interface{}{
 		uint16(messages.ErrorOpcode),
 		uint16(messages.FileNotFound),
 		string("lol"),
 		byte(0),
 	})
-
-	agent := NewRequestAgent(conn)
-	go agent.Read()
 
 	select {
 	case errorPacket := <-agent.Error:
@@ -68,15 +60,11 @@ func TestErrorPacketCausesError(t *testing.T) {
 func TestDataPacketCausesData(t *testing.T) {
 	const blockNum uint16 = 2345
 
-	conn := &helpers.MockPacketConn{}
-	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+	agent := agentWithIncomingPacket(t, []interface{}{
 		uint16(messages.DataOpcode),
 		uint16(blockNum),
 		[]byte{0, 1, 2, 3, 4, 5, 255},
 	})
-
-	agent := NewRequestAgent(conn)
-	go agent.Read()
 
 	select {
 	case data := <-agent.Data:
@@ -96,17 +84,13 @@ func TestDataPacketCausesData(t *testing.T) {
 func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	const blockNum uint16 = 9876
 
-	conn := &helpers.MockPacketConn{}
-	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+	agent := agentWithIncomingPacket(t, []interface{}{
 		uint16(messages.ReadOpcode),
 		string("/foo/bar"),
 		byte(0),
 		string("netascii"),
 		byte(0),
 	})
-
-	agent := NewRequestAgent(conn)
-	go agent.Read()
 
 	select {
 	case readPacket := <-agent.ReadRequest:
@@ -126,6 +110,17 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	t.Skipf("Pending")
+}
+
+func agentWithIncomingPacket(t *testing.T, data []interface{}) *RequestAgent {
+	conn := &helpers.MockPacketConn{
+		ReadFromFunc: buildReaderFunc(t, data),
+	}
+
+	agent := NewRequestAgent(conn)
+	go agent.Read()
+
+	return agent
 }
 
 func buildReaderFunc(t *testing.T, data []interface{}) func([]byte) (int, net.Addr, error) {
