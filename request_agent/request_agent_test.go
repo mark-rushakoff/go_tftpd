@@ -13,38 +13,14 @@ import (
 
 const timeoutMs = 100
 
-func TestNewRequestAgent(t *testing.T) {
-	agent := NewRequestAgent(nil)
-	if agent == nil {
-		t.Errorf("Could not create an agent")
-	}
-}
-
 func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	const blockNum uint16 = 1234
 
 	conn := &helpers.MockPacketConn{}
-	wasCalledOnce := false
-	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
-		if wasCalledOnce {
-			// block forever
-			select {}
-		}
-		var data = []interface{}{
-			uint16(messages.AckOpcode),
-			uint16(blockNum),
-		}
-
-		buf := new(bytes.Buffer)
-		for _, v := range data {
-			err := binary.Write(buf, binary.BigEndian, v)
-			if err != nil {
-				t.Errorf("Failed to write data to buffer")
-			}
-		}
-		n := copy(b, buf.Bytes())
-		return n, nil, nil
-	}
+	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+		uint16(messages.AckOpcode),
+		uint16(blockNum),
+	})
 
 	agent := NewRequestAgent(conn)
 	go agent.Read()
@@ -63,37 +39,12 @@ func TestErrorPacketCausesError(t *testing.T) {
 	const blockNum uint16 = 3456
 
 	conn := &helpers.MockPacketConn{}
-	wasCalledOnce := false
-	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
-		if wasCalledOnce {
-			// block forever
-			select {}
-		}
-		var data = []interface{}{
-			uint16(messages.ErrorOpcode),
-			uint16(messages.FileNotFound),
-			string("lol"),
-			byte(0),
-		}
-
-		buf := new(bytes.Buffer)
-		for _, v := range data {
-			str, isString := v.(string)
-			if isString {
-				_, err := buf.WriteString(str)
-				if err != nil {
-					t.Errorf("Failed to write string to buffer")
-				}
-			} else {
-				err := binary.Write(buf, binary.BigEndian, v)
-				if err != nil {
-					t.Errorf("Failed to write data to buffer")
-				}
-			}
-		}
-		n := copy(b, buf.Bytes())
-		return n, nil, nil
-	}
+	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+		uint16(messages.ErrorOpcode),
+		uint16(messages.FileNotFound),
+		string("lol"),
+		byte(0),
+	})
 
 	agent := NewRequestAgent(conn)
 	go agent.Read()
@@ -118,28 +69,11 @@ func TestDataPacketCausesData(t *testing.T) {
 	const blockNum uint16 = 2345
 
 	conn := &helpers.MockPacketConn{}
-	wasCalledOnce := false
-	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
-		if wasCalledOnce {
-			// block forever
-			select {}
-		}
-		var data = []interface{}{
-			uint16(messages.DataOpcode),
-			uint16(blockNum),
-			[]byte{0, 1, 2, 3, 4, 5, 255},
-		}
-
-		buf := new(bytes.Buffer)
-		for _, v := range data {
-			err := binary.Write(buf, binary.BigEndian, v)
-			if err != nil {
-				t.Errorf("Failed to write data to buffer")
-			}
-		}
-		n := copy(b, buf.Bytes())
-		return n, nil, nil
-	}
+	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+		uint16(messages.DataOpcode),
+		uint16(blockNum),
+		[]byte{0, 1, 2, 3, 4, 5, 255},
+	})
 
 	agent := NewRequestAgent(conn)
 	go agent.Read()
@@ -163,38 +97,13 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	const blockNum uint16 = 9876
 
 	conn := &helpers.MockPacketConn{}
-	wasCalledOnce := false
-	conn.ReadFromFunc = func(b []byte) (int, net.Addr, error) {
-		if wasCalledOnce {
-			// block forever
-			select {}
-		}
-		var data = []interface{}{
-			uint16(messages.ReadOpcode),
-			string("/foo/bar"),
-			byte(0),
-			string("netascii"),
-			byte(0),
-		}
-
-		buf := new(bytes.Buffer)
-		for _, v := range data {
-			str, isString := v.(string)
-			if isString {
-				_, err := buf.WriteString(str)
-				if err != nil {
-					t.Errorf("Failed to write string to buffer")
-				}
-			} else {
-				err := binary.Write(buf, binary.BigEndian, v)
-				if err != nil {
-					t.Errorf("Failed to write data to buffer")
-				}
-			}
-		}
-		n := copy(b, buf.Bytes())
-		return n, nil, nil
-	}
+	conn.ReadFromFunc = buildReaderFunc(t, []interface{}{
+		uint16(messages.ReadOpcode),
+		string("/foo/bar"),
+		byte(0),
+		string("netascii"),
+		byte(0),
+	})
 
 	agent := NewRequestAgent(conn)
 	go agent.Read()
@@ -217,4 +126,33 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	t.Skipf("Pending")
+}
+
+func buildReaderFunc(t *testing.T, data []interface{}) func([]byte) (int, net.Addr, error) {
+	wasCalledOnce := false
+	return func(b []byte) (int, net.Addr, error) {
+		if wasCalledOnce {
+			// block forever
+			select {}
+		}
+		wasCalledOnce = true
+
+		buf := new(bytes.Buffer)
+		for _, v := range data {
+			str, isString := v.(string)
+			if isString {
+				_, err := buf.WriteString(str)
+				if err != nil {
+					t.Errorf("Failed to write string to buffer")
+				}
+			} else {
+				err := binary.Write(buf, binary.BigEndian, v)
+				if err != nil {
+					t.Errorf("Failed to write data to buffer")
+				}
+			}
+		}
+		n := copy(b, buf.Bytes())
+		return n, nil, nil
+	}
 }
