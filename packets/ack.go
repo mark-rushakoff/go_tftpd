@@ -1,4 +1,4 @@
-package messages
+package packets
 
 const AckOpcode uint16 = 4
 

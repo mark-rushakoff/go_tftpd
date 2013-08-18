@@ -1,4 +1,4 @@
-package messages
+package packets
 
 const (
 	ReadOpcode  uint16 = 1

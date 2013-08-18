@@ -1,4 +1,4 @@
-package messages
+package packets
 
 const ErrorOpcode uint16 = 5
 

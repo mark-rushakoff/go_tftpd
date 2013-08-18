@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/helpers"
-	"github.com/mark-rushakoff/go_tftpd/messages"
+	"github.com/mark-rushakoff/go_tftpd/packets"
 )
 
 const timeoutMs = 100
@@ -17,7 +17,7 @@ func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	const blockNum uint16 = 1234
 
 	agent := agentWithIncomingPacket(t, []interface{}{
-		uint16(messages.AckOpcode),
+		uint16(packets.AckOpcode),
 		uint16(blockNum),
 	})
 
@@ -35,15 +35,15 @@ func TestErrorPacketCausesError(t *testing.T) {
 	const blockNum uint16 = 3456
 
 	agent := agentWithIncomingPacket(t, []interface{}{
-		uint16(messages.ErrorOpcode),
-		uint16(messages.FileNotFound),
+		uint16(packets.ErrorOpcode),
+		uint16(packets.FileNotFound),
 		string("lol"),
 		byte(0),
 	})
 
 	select {
 	case errorPacket := <-agent.Error:
-		expectedCode := messages.FileNotFound
+		expectedCode := packets.FileNotFound
 		if errorPacket.Code != expectedCode {
 			t.Errorf("Received code %v, expected %v", errorPacket.Code, expectedCode)
 		}
@@ -61,7 +61,7 @@ func TestDataPacketCausesData(t *testing.T) {
 	const blockNum uint16 = 2345
 
 	agent := agentWithIncomingPacket(t, []interface{}{
-		uint16(messages.DataOpcode),
+		uint16(packets.DataOpcode),
 		uint16(blockNum),
 		[]byte{0, 1, 2, 3, 4, 5, 255},
 	})
@@ -85,7 +85,7 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	const blockNum uint16 = 9876
 
 	agent := agentWithIncomingPacket(t, []interface{}{
-		uint16(messages.ReadOpcode),
+		uint16(packets.ReadOpcode),
 		string("/foo/bar"),
 		byte(0),
 		string("netascii"),
@@ -112,7 +112,7 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	const blockNum uint16 = 2468
 
 	agent := agentWithIncomingPacket(t, []interface{}{
-		uint16(messages.WriteOpcode),
+		uint16(packets.WriteOpcode),
 		string("/foo/bar"),
 		byte(0),
 		string("netascii"),

@@ -6,26 +6,26 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/mark-rushakoff/go_tftpd/messages"
+	"github.com/mark-rushakoff/go_tftpd/packets"
 )
 
 type RequestAgent struct {
-	Ack                 chan *messages.Ack
-	Error               chan *messages.Error
-	Data                chan *messages.Data
-	ReadRequest         chan *messages.ReadRequest
-	WriteRequest        chan *messages.WriteRequest
+	Ack                 chan *packets.Ack
+	Error               chan *packets.Error
+	Data                chan *packets.Data
+	ReadRequest         chan *packets.ReadRequest
+	WriteRequest        chan *packets.WriteRequest
 	InvalidTransmission chan *InvalidTransmission
 	conn                net.PacketConn
 }
 
 func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 	return &RequestAgent{
-		Ack:                 make(chan *messages.Ack),
-		Error:               make(chan *messages.Error),
-		Data:                make(chan *messages.Data),
-		ReadRequest:         make(chan *messages.ReadRequest),
-		WriteRequest:        make(chan *messages.WriteRequest),
+		Ack:                 make(chan *packets.Ack),
+		Error:               make(chan *packets.Error),
+		Data:                make(chan *packets.Data),
+		ReadRequest:         make(chan *packets.ReadRequest),
+		WriteRequest:        make(chan *packets.WriteRequest),
 		InvalidTransmission: make(chan *InvalidTransmission),
 		conn:                conn,
 	}
@@ -50,15 +50,15 @@ func (a *RequestAgent) Read() {
 	}
 
 	switch opcode {
-	case messages.AckOpcode:
+	case packets.AckOpcode:
 		go a.handleAck(b)
-	case messages.DataOpcode:
+	case packets.DataOpcode:
 		go a.handleData(b)
-	case messages.ReadOpcode:
+	case packets.ReadOpcode:
 		go a.handleRead(b)
-	case messages.WriteOpcode:
+	case packets.WriteOpcode:
 		go a.handleWrite(b)
-	case messages.ErrorOpcode:
+	case packets.ErrorOpcode:
 		go a.handleError(b)
 	default:
 		go a.handleInvalidPacket(b, InvalidOpcode)
@@ -72,7 +72,7 @@ func (a *RequestAgent) handleAck(b []byte) {
 	if err != nil {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
-	a.Ack <- &messages.Ack{blockNum}
+	a.Ack <- &packets.Ack{blockNum}
 }
 
 func (a *RequestAgent) handleData(b []byte) {
@@ -83,7 +83,7 @@ func (a *RequestAgent) handleData(b []byte) {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
 	data := b[4:]
-	a.Data <- &messages.Data{blockNum, data}
+	a.Data <- &packets.Data{blockNum, data}
 }
 
 func (a *RequestAgent) handleError(b []byte) {
@@ -95,17 +95,17 @@ func (a *RequestAgent) handleError(b []byte) {
 	}
 
 	message := string(b[4 : len(b)-1]) // chop nul byte at end
-	a.Error <- &messages.Error{messages.ErrorCode(code), message}
+	a.Error <- &packets.Error{packets.ErrorCode(code), message}
 }
 
 func (a *RequestAgent) handleRead(b []byte) {
 	filename, readWriteMode := readWriteRequestContent(b)
-	a.ReadRequest <- &messages.ReadRequest{filename, readWriteMode}
+	a.ReadRequest <- &packets.ReadRequest{filename, readWriteMode}
 }
 
 func (a *RequestAgent) handleWrite(b []byte) {
 	filename, readWriteMode := readWriteRequestContent(b)
-	a.WriteRequest <- &messages.WriteRequest{filename, readWriteMode}
+	a.WriteRequest <- &packets.WriteRequest{filename, readWriteMode}
 }
 
 func readWriteRequestContent(b []byte) (filename string, readWriteMode string) {

@@ -1,4 +1,4 @@
-package messages
+package packets
 
 const DataOpcode uint16 = 3
 
