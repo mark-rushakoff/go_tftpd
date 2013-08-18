@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/mark-rushakoff/go_tftpd/messages"
 )
@@ -109,7 +108,7 @@ func (a *RequestAgent) handleWrite(b []byte) {
 	a.WriteRequest <- &messages.WriteRequest{filename, readWriteMode}
 }
 
-func readWriteRequestContent(b []byte) (filename string, readWriteMode messages.ReadWriteMode) {
+func readWriteRequestContent(b []byte) (filename string, readWriteMode string) {
 	remaining := b[2:]
 	nulIndex := bytes.IndexByte(remaining, 0)
 	if nulIndex == -1 {
@@ -117,12 +116,8 @@ func readWriteRequestContent(b []byte) (filename string, readWriteMode messages.
 	}
 	filename = string(remaining[:nulIndex])
 
-	modeStr := string(remaining[nulIndex+1 : len(remaining)-1])
-	if strings.ToLower(modeStr) == "netascii" {
-		readWriteMode = messages.NetAscii
-	} else {
-		panic(fmt.Sprintf("Unrecognized mode in request: %v", modeStr))
-	}
+	readWriteMode = string(remaining[nulIndex+1 : len(remaining)-1])
+	// TODO: verify trailing nul-byte
 
 	return
 }

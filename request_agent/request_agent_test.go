@@ -99,7 +99,7 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 			t.Errorf("Received name %v, expected %v", readPacket.Filename, expectedFilename)
 		}
 
-		expectedMode := messages.NetAscii
+		expectedMode := "netascii"
 		if readPacket.Mode != expectedMode {
 			t.Errorf("Received mode %v, expected %v", readPacket.Mode, expectedMode)
 		}
@@ -126,7 +126,7 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 			t.Errorf("Received name %v, expected %v", writePacket.Filename, expectedFilename)
 		}
 
-		expectedMode := messages.NetAscii
+		expectedMode := "netascii"
 		if writePacket.Mode != expectedMode {
 			t.Errorf("Received mode %v, expected %v", writePacket.Mode, expectedMode)
 		}
