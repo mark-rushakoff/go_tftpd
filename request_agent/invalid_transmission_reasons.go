@@ -7,6 +7,7 @@ type InvalidTransmissionReason int
 const (
 	PacketTooShort InvalidTransmissionReason = iota
 	InvalidOpcode
+	MissingField
 )
 
 func (reason InvalidTransmissionReason) String() string {
@@ -15,6 +16,8 @@ func (reason InvalidTransmissionReason) String() string {
 		return "Packet too short"
 	case InvalidOpcode:
 		return "Invalid opcode"
+	case MissingField:
+		return "Missing field"
 	default:
 		panic(fmt.Sprintf("No string exists for reason code %d", reason))
 	}

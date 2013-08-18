@@ -99,26 +99,48 @@ func (a *RequestAgent) handleError(b []byte) {
 }
 
 func (a *RequestAgent) handleRead(b []byte) {
-	filename, readWriteMode := readWriteRequestContent(b)
-	a.ReadRequest <- &packets.ReadRequest{filename, readWriteMode}
+	content, invalidReason, ok := parseReadWriteRequestContent(b)
+	if ok {
+		a.ReadRequest <- &packets.ReadRequest{content.filename, content.readWriteMode}
+	} else {
+		a.handleInvalidPacket(b, invalidReason)
+	}
 }
 
 func (a *RequestAgent) handleWrite(b []byte) {
-	filename, readWriteMode := readWriteRequestContent(b)
-	a.WriteRequest <- &packets.WriteRequest{filename, readWriteMode}
+	content, invalidReason, ok := parseReadWriteRequestContent(b)
+	if ok {
+		a.WriteRequest <- &packets.WriteRequest{content.filename, content.readWriteMode}
+	} else {
+		a.handleInvalidPacket(b, invalidReason)
+	}
 }
 
-func readWriteRequestContent(b []byte) (filename string, readWriteMode string) {
+type readWriteRequestContent struct {
+	filename      string
+	readWriteMode string
+}
+
+func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, invalidReason InvalidTransmissionReason, ok bool) {
 	remaining := b[2:]
 	nulIndex := bytes.IndexByte(remaining, 0)
 	if nulIndex == -1 {
-		panic("Could not find nul-terminator in request")
+		invalidReason = MissingField
+		return
 	}
-	filename = string(remaining[:nulIndex])
 
-	readWriteMode = string(remaining[nulIndex+1 : len(remaining)-1])
-	// TODO: verify trailing nul-byte
+	content.filename = string(remaining[:nulIndex])
 
+	remaining = remaining[nulIndex+1:]
+	nulIndex = bytes.IndexByte(remaining, 0)
+	if nulIndex == -1 {
+		invalidReason = MissingField
+		return
+	}
+
+	content.readWriteMode = string(remaining[:nulIndex])
+
+	ok = true
 	return
 }
 
