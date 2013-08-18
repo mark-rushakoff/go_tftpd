@@ -59,7 +59,10 @@ func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 func (a *RequestAgent) Read() {
 	const maxPacketSize = 516
 	b := make([]byte, maxPacketSize)
-	bytesRead, addr, _ := a.conn.ReadFrom(b)
+	bytesRead, addr, err := a.conn.ReadFrom(b)
+  if err != nil {
+    panic(fmt.Sprintf("Error reading from connection: %v", err.Error()))
+  }
 	b = b[:bytesRead]
 
 	if bytesRead < 3 {
@@ -71,7 +74,7 @@ func (a *RequestAgent) Read() {
 	var opcode uint16
 	err := binary.Read(opcodeBuf, binary.BigEndian, &opcode)
 	if err != nil {
-		panic("Error while reading opcode from packet")
+		panic(fmt.Sprintf("Error while reading opcode from packet: %v", err.Error()))
 	}
 
 	switch opcode {
