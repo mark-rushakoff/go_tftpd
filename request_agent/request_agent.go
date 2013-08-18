@@ -11,22 +11,24 @@ import (
 )
 
 type RequestAgent struct {
-	conn         net.PacketConn
-	Ack          chan *messages.Ack
-	Error        chan *messages.Error
-	Data         chan *messages.Data
-	ReadRequest  chan *messages.ReadRequest
-	WriteRequest chan *messages.WriteRequest
+	Ack                 chan *messages.Ack
+	Error               chan *messages.Error
+	Data                chan *messages.Data
+	ReadRequest         chan *messages.ReadRequest
+	WriteRequest        chan *messages.WriteRequest
+	InvalidTransmission chan *InvalidTransmission
+	conn                net.PacketConn
 }
 
 func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 	return &RequestAgent{
-		conn:         conn,
-		Ack:          make(chan *messages.Ack),
-		Error:        make(chan *messages.Error),
-		Data:         make(chan *messages.Data),
-		ReadRequest:  make(chan *messages.ReadRequest),
-		WriteRequest: make(chan *messages.WriteRequest),
+		Ack:                 make(chan *messages.Ack),
+		Error:               make(chan *messages.Error),
+		Data:                make(chan *messages.Data),
+		ReadRequest:         make(chan *messages.ReadRequest),
+		WriteRequest:        make(chan *messages.WriteRequest),
+		InvalidTransmission: make(chan *InvalidTransmission),
+		conn:                conn,
 	}
 }
 
@@ -35,6 +37,12 @@ func (a *RequestAgent) Read() {
 	b := make([]byte, maxPacketSize)
 	bytesRead, _, _ := a.conn.ReadFrom(b)
 	b = b[:bytesRead]
+
+	if bytesRead < 3 {
+		go a.handleInvalidPacket(b, PacketTooShort)
+		return
+	}
+
 	opcodeBuf := bytes.NewBuffer(b[0:2])
 	var opcode uint16
 	err := binary.Read(opcodeBuf, binary.BigEndian, &opcode)
@@ -54,7 +62,7 @@ func (a *RequestAgent) Read() {
 	case messages.ErrorOpcode:
 		go a.handleError(b)
 	default:
-		panic(fmt.Sprintf("Unknown opcode: %v", opcode))
+		go a.handleInvalidPacket(b, InvalidOpcode)
 	}
 }
 
@@ -117,4 +125,8 @@ func readWriteRequestContent(b []byte) (filename string, readWriteMode messages.
 	}
 
 	return
+}
+
+func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason) {
+	a.InvalidTransmission <- &InvalidTransmission{b, reason}
 }

@@ -135,6 +135,46 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	}
 }
 
+type invalidPacketTestCase struct {
+	packet      []byte
+	reason      InvalidTransmissionReason
+	description string
+}
+
+func TestInvalidPacketCausesInvalidTransmission(t *testing.T) {
+	testCases := []invalidPacketTestCase{
+		{[]byte{}, PacketTooShort, "0-byte packet too short"},
+		{[]byte{0}, PacketTooShort, "1-byte packet too short"},
+		{[]byte{0, 0}, PacketTooShort, "2-byte packet too short"},
+		{[]byte{255, 255, 255, 255}, InvalidOpcode, "Invalid opcode"},
+	}
+
+	for _, testCase := range testCases {
+		invalidPacketCausesInvalidTransmission(t, testCase)
+	}
+}
+
+func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacketTestCase) {
+	t.Logf(`Running test case "%v"`, testCase.description)
+	invalidPacket := testCase.packet
+	agent := agentWithIncomingPacket(t, []interface{}{invalidPacket})
+	select {
+	case invalidTransmission := <-agent.InvalidTransmission:
+		expectedTransmission := make([]byte, len(invalidPacket))
+		copy(expectedTransmission, invalidPacket)
+		if !bytes.Equal(invalidTransmission.Packet, expectedTransmission) {
+			t.Errorf("Detected invalid transmission %v, expected %v", invalidTransmission, expectedTransmission)
+		}
+
+		actualReason := invalidTransmission.Reason
+		if actualReason != testCase.reason {
+			t.Errorf("Detected invalid transmission with reason code %v, expected %v", actualReason, testCase.reason)
+		}
+	case <-time.After(timeoutMs * time.Millisecond):
+		t.Errorf("Did not receive invalid transmission in time")
+	}
+}
+
 func agentWithIncomingPacket(t *testing.T, data []interface{}) *RequestAgent {
 	conn := &helpers.MockPacketConn{
 		ReadFromFunc: buildReaderFunc(t, data),
