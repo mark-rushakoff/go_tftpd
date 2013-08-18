@@ -168,7 +168,7 @@ func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacket
 
 		actualReason := invalidTransmission.Reason
 		if actualReason != testCase.reason {
-			t.Errorf("Detected invalid transmission with reason code %v, expected %v", actualReason, testCase.reason)
+			t.Errorf("Detected invalid transmission with reason code '%v', expected '%v'", actualReason, testCase.reason)
 		}
 	case <-time.After(timeoutMs * time.Millisecond):
 		t.Errorf("Did not receive invalid transmission in time")
