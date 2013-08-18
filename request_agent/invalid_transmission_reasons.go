@@ -8,6 +8,7 @@ const (
 	PacketTooShort InvalidTransmissionReason = iota
 	InvalidOpcode
 	MissingField
+	PacketTooLong
 )
 
 func (reason InvalidTransmissionReason) String() string {

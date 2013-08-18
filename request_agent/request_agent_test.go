@@ -146,8 +146,14 @@ func TestInvalidPacketCausesInvalidTransmission(t *testing.T) {
 		{[]byte{}, PacketTooShort, "0-byte packet too short"},
 		{[]byte{0}, PacketTooShort, "1-byte packet too short"},
 		{[]byte{0, 0}, PacketTooShort, "2-byte packet too short"},
+		{[]byte{0, 3, 1}, PacketTooShort, "Data with incomplete block number"},
+		{[]byte{0, 4, 1}, PacketTooShort, "Ack with incomplete block number"},
+		{[]byte{0, 4, 1, 2, 3}, PacketTooLong, "Ack with extra data"},
+		{[]byte{0, 5, 1}, PacketTooShort, "Error with incomplete block number"},
+		{[]byte{0, 5, 1, 1, 32, 0, 5}, PacketTooLong, "Error with data after message"},
 		{[]byte{0, 1, 102, 111, 111}, MissingField, "Read packet with missing filename terminator"},
 		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114}, MissingField, "Read packet with missing mode terminator"},
+		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114, 0, 5}, PacketTooLong, "Read packet with data after mode"},
 		{[]byte{255, 255, 255, 255}, InvalidOpcode, "Invalid opcode"},
 	}
 

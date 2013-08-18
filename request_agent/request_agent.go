@@ -66,6 +66,16 @@ func (a *RequestAgent) Read() {
 }
 
 func (a *RequestAgent) handleAck(b []byte) {
+	if len(b) < 4 {
+		a.handleInvalidPacket(b, PacketTooShort)
+		return
+	}
+
+	if len(b) > 4 {
+		a.handleInvalidPacket(b, PacketTooLong)
+		return
+	}
+
 	blockNumBuf := bytes.NewBuffer(b[2:4])
 	var blockNum uint16
 	err := binary.Read(blockNumBuf, binary.BigEndian, &blockNum)
@@ -76,6 +86,11 @@ func (a *RequestAgent) handleAck(b []byte) {
 }
 
 func (a *RequestAgent) handleData(b []byte) {
+	if len(b) < 4 {
+		a.handleInvalidPacket(b, PacketTooShort)
+		return
+	}
+
 	blockNumBuf := bytes.NewBuffer(b[2:4])
 	var blockNum uint16
 	err := binary.Read(blockNumBuf, binary.BigEndian, &blockNum)
@@ -87,6 +102,11 @@ func (a *RequestAgent) handleData(b []byte) {
 }
 
 func (a *RequestAgent) handleError(b []byte) {
+	if len(b) < 4 {
+		a.handleInvalidPacket(b, PacketTooShort)
+		return
+	}
+
 	codeBuf := bytes.NewBuffer(b[2:4])
 	var code uint16
 	err := binary.Read(codeBuf, binary.BigEndian, &code)
@@ -94,7 +114,19 @@ func (a *RequestAgent) handleError(b []byte) {
 		panic(fmt.Sprintf("Error while reading code from packet: %v", err))
 	}
 
-	message := string(b[4 : len(b)-1]) // chop nul byte at end
+	remaining := b[4:]
+	nulIndex := bytes.IndexByte(remaining, 0)
+	if nulIndex == -1 {
+		a.handleInvalidPacket(b, MissingField)
+		return
+	}
+
+	if len(remaining) > nulIndex+1 {
+		a.handleInvalidPacket(b, PacketTooLong)
+		return
+	}
+
+	message := string(remaining[:nulIndex])
 	a.Error <- &packets.Error{packets.ErrorCode(code), message}
 }
 
@@ -135,6 +167,11 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 	nulIndex = bytes.IndexByte(remaining, 0)
 	if nulIndex == -1 {
 		invalidReason = MissingField
+		return
+	}
+
+	if len(remaining) > nulIndex+1 {
+		invalidReason = PacketTooLong
 		return
 	}
 
