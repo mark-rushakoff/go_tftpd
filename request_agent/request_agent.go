@@ -10,22 +10,47 @@ import (
 )
 
 type RequestAgent struct {
-	Ack                 chan *packets.Ack
-	Error               chan *packets.Error
-	Data                chan *packets.Data
-	ReadRequest         chan *packets.ReadRequest
-	WriteRequest        chan *packets.WriteRequest
+	Ack                 chan *IncomingAck
+	Error               chan *IncomingError
+	Data                chan *IncomingData
+	ReadRequest         chan *IncomingReadRequest
+	WriteRequest        chan *IncomingWriteRequest
 	InvalidTransmission chan *InvalidTransmission
 	conn                net.PacketConn
 }
 
+type IncomingAck struct {
+	Ack  *packets.Ack
+	Addr *net.Addr
+}
+
+type IncomingError struct {
+	Error *packets.Error
+	Addr  *net.Addr
+}
+
+type IncomingData struct {
+	Data *packets.Data
+	Addr *net.Addr
+}
+
+type IncomingReadRequest struct {
+	Read *packets.ReadRequest
+	Addr *net.Addr
+}
+
+type IncomingWriteRequest struct {
+	Write *packets.WriteRequest
+	Addr  *net.Addr
+}
+
 func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 	return &RequestAgent{
-		Ack:                 make(chan *packets.Ack),
-		Error:               make(chan *packets.Error),
-		Data:                make(chan *packets.Data),
-		ReadRequest:         make(chan *packets.ReadRequest),
-		WriteRequest:        make(chan *packets.WriteRequest),
+		Ack:                 make(chan *IncomingAck),
+		Error:               make(chan *IncomingError),
+		Data:                make(chan *IncomingData),
+		ReadRequest:         make(chan *IncomingReadRequest),
+		WriteRequest:        make(chan *IncomingWriteRequest),
 		InvalidTransmission: make(chan *InvalidTransmission),
 		conn:                conn,
 	}
@@ -34,11 +59,11 @@ func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 func (a *RequestAgent) Read() {
 	const maxPacketSize = 516
 	b := make([]byte, maxPacketSize)
-	bytesRead, _, _ := a.conn.ReadFrom(b)
+	bytesRead, addr, _ := a.conn.ReadFrom(b)
 	b = b[:bytesRead]
 
 	if bytesRead < 3 {
-		go a.handleInvalidPacket(b, PacketTooShort)
+		go a.handleInvalidPacket(b, PacketTooShort, &addr)
 		return
 	}
 
@@ -51,28 +76,28 @@ func (a *RequestAgent) Read() {
 
 	switch opcode {
 	case packets.AckOpcode:
-		go a.handleAck(b)
+		go a.handleAck(b, &addr)
 	case packets.DataOpcode:
-		go a.handleData(b)
+		go a.handleData(b, &addr)
 	case packets.ReadOpcode:
-		go a.handleRead(b)
+		go a.handleRead(b, &addr)
 	case packets.WriteOpcode:
-		go a.handleWrite(b)
+		go a.handleWrite(b, &addr)
 	case packets.ErrorOpcode:
-		go a.handleError(b)
+		go a.handleError(b, &addr)
 	default:
-		go a.handleInvalidPacket(b, InvalidOpcode)
+		go a.handleInvalidPacket(b, InvalidOpcode, &addr)
 	}
 }
 
-func (a *RequestAgent) handleAck(b []byte) {
+func (a *RequestAgent) handleAck(b []byte, addr *net.Addr) {
 	if len(b) < 4 {
-		a.handleInvalidPacket(b, PacketTooShort)
+		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
 	}
 
 	if len(b) > 4 {
-		a.handleInvalidPacket(b, PacketTooLong)
+		a.handleInvalidPacket(b, PacketTooLong, addr)
 		return
 	}
 
@@ -82,12 +107,12 @@ func (a *RequestAgent) handleAck(b []byte) {
 	if err != nil {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
-	a.Ack <- &packets.Ack{blockNum}
+	a.Ack <- &IncomingAck{&packets.Ack{blockNum}, addr}
 }
 
-func (a *RequestAgent) handleData(b []byte) {
+func (a *RequestAgent) handleData(b []byte, addr *net.Addr) {
 	if len(b) < 4 {
-		a.handleInvalidPacket(b, PacketTooShort)
+		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
 	}
 
@@ -98,12 +123,13 @@ func (a *RequestAgent) handleData(b []byte) {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
 	data := b[4:]
-	a.Data <- &packets.Data{blockNum, data}
+	dataPacket := &packets.Data{blockNum, data}
+	a.Data <- &IncomingData{dataPacket, addr}
 }
 
-func (a *RequestAgent) handleError(b []byte) {
+func (a *RequestAgent) handleError(b []byte, addr *net.Addr) {
 	if len(b) < 4 {
-		a.handleInvalidPacket(b, PacketTooShort)
+		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
 	}
 
@@ -117,34 +143,37 @@ func (a *RequestAgent) handleError(b []byte) {
 	remaining := b[4:]
 	nulIndex := bytes.IndexByte(remaining, 0)
 	if nulIndex == -1 {
-		a.handleInvalidPacket(b, MissingField)
+		a.handleInvalidPacket(b, MissingField, addr)
 		return
 	}
 
 	if len(remaining) > nulIndex+1 {
-		a.handleInvalidPacket(b, PacketTooLong)
+		a.handleInvalidPacket(b, PacketTooLong, addr)
 		return
 	}
 
 	message := string(remaining[:nulIndex])
-	a.Error <- &packets.Error{packets.ErrorCode(code), message}
+	errorPacket := &packets.Error{packets.ErrorCode(code), message}
+	a.Error <- &IncomingError{errorPacket, addr}
 }
 
-func (a *RequestAgent) handleRead(b []byte) {
+func (a *RequestAgent) handleRead(b []byte, addr *net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
-		a.ReadRequest <- &packets.ReadRequest{content.filename, content.readWriteMode}
+		read := &packets.ReadRequest{content.filename, content.readWriteMode}
+		a.ReadRequest <- &IncomingReadRequest{read, addr}
 	} else {
-		a.handleInvalidPacket(b, invalidReason)
+		a.handleInvalidPacket(b, invalidReason, addr)
 	}
 }
 
-func (a *RequestAgent) handleWrite(b []byte) {
+func (a *RequestAgent) handleWrite(b []byte, addr *net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
-		a.WriteRequest <- &packets.WriteRequest{content.filename, content.readWriteMode}
+		write := &packets.WriteRequest{content.filename, content.readWriteMode}
+		a.WriteRequest <- &IncomingWriteRequest{write, addr}
 	} else {
-		a.handleInvalidPacket(b, invalidReason)
+		a.handleInvalidPacket(b, invalidReason, addr)
 	}
 }
 
@@ -181,6 +210,6 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 	return
 }
 
-func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason) {
-	a.InvalidTransmission <- &InvalidTransmission{b, reason}
+func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason, addr *net.Addr) {
+	a.InvalidTransmission <- &InvalidTransmission{b, reason, addr}
 }

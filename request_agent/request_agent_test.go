@@ -22,7 +22,8 @@ func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	})
 
 	select {
-	case ack := <-agent.Ack:
+	case incomingAck := <-agent.Ack:
+		ack := incomingAck.Ack
 		if ack.BlockNumber != blockNum {
 			t.Errorf("Received block number %v, expected %v", ack.BlockNumber, blockNum)
 		}
@@ -42,7 +43,8 @@ func TestErrorPacketCausesError(t *testing.T) {
 	})
 
 	select {
-	case errorPacket := <-agent.Error:
+	case incomingError := <-agent.Error:
+		errorPacket := incomingError.Error
 		expectedCode := packets.FileNotFound
 		if errorPacket.Code != expectedCode {
 			t.Errorf("Received code %v, expected %v", errorPacket.Code, expectedCode)
@@ -67,7 +69,8 @@ func TestDataPacketCausesData(t *testing.T) {
 	})
 
 	select {
-	case data := <-agent.Data:
+	case incomingData := <-agent.Data:
+		data := incomingData.Data
 		if data.BlockNumber != blockNum {
 			t.Errorf("Received block number %v, expected %v", data.BlockNumber, blockNum)
 		}
@@ -93,7 +96,8 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	})
 
 	select {
-	case readPacket := <-agent.ReadRequest:
+	case incomingRead := <-agent.ReadRequest:
+		readPacket := incomingRead.Read
 		expectedFilename := "/foo/bar"
 		if readPacket.Filename != expectedFilename {
 			t.Errorf("Received name %v, expected %v", readPacket.Filename, expectedFilename)
@@ -120,7 +124,8 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	})
 
 	select {
-	case writePacket := <-agent.WriteRequest:
+	case incomingWrite := <-agent.WriteRequest:
+		writePacket := incomingWrite.Write
 		expectedFilename := "/foo/bar"
 		if writePacket.Filename != expectedFilename {
 			t.Errorf("Received name %v, expected %v", writePacket.Filename, expectedFilename)
