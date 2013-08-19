@@ -21,3 +21,7 @@ func NewResponseAgent(conn net.PacketConn, clientAddr net.Addr) *ResponseAgent {
 func (a *ResponseAgent) SendAck(ack *safe_packets.SafeAck) {
 	a.conn.WriteTo(ack.Bytes(), a.clientAddr)
 }
+
+func (a *ResponseAgent) SendErrorPacket(e *safe_packets.SafeError) {
+	a.conn.WriteTo(e.Bytes(), a.clientAddr)
+}
