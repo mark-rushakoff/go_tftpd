@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 	"github.com/mark-rushakoff/go_tftpd/packets"
+	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
 const timeoutMs = 100
