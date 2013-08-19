@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/helpers"
+	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 	"github.com/mark-rushakoff/go_tftpd/packets"
 )
 
@@ -189,7 +189,7 @@ func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacket
 }
 
 func agentWithIncomingPacket(t *testing.T, data []interface{}) *RequestAgent {
-	conn := &helpers.MockPacketConn{
+	conn := &test_helpers.MockPacketConn{
 		ReadFromFunc: buildReaderFunc(t, data),
 	}
 

@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/mark-rushakoff/go_tftpd/helpers"
+	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
@@ -36,13 +36,13 @@ func TestAckSerializes(t *testing.T) {
 	}
 }
 
-func buildAgentExpecting(b []byte) (agent *ResponseAgent, conn *helpers.MockPacketConn, addr net.Addr) {
-	conn = &helpers.MockPacketConn{
+func buildAgentExpecting(b []byte) (agent *ResponseAgent, conn *test_helpers.MockPacketConn, addr net.Addr) {
+	conn = &test_helpers.MockPacketConn{
 		WriteToFunc: func(b []byte, a net.Addr) (int, error) {
 			return len(b), nil
 		},
 	}
-	addr = &helpers.MockAddr{}
+	addr = &test_helpers.MockAddr{}
 	agent = NewResponseAgent(conn, addr)
 
 	return
