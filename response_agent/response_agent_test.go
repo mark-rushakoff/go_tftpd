@@ -57,6 +57,27 @@ func TestErrorSerializes(t *testing.T) {
 	}
 }
 
+func TestDataSerializes(t *testing.T) {
+	// opcode 3, block number 1234, string "foo"
+	expectedPacketOut := []byte{0, 3, 4, 210, 102, 111, 111}
+	agent, conn, addr := buildAgentThatWrites(expectedPacketOut)
+	data := safe_packets.NewSafeData(1234, []byte("foo"))
+	agent.SendData(data)
+
+	lastPacketOut, lastAddr, ok := conn.LastPacketOut()
+	if !ok {
+		t.Errorf("Expected a packet to be sent but no packets were sent")
+	}
+
+	if addr != lastAddr {
+		t.Errorf("Expected agent to send to addr %v, but sent to %v", addr, lastAddr)
+	}
+
+	if !bytes.Equal(expectedPacketOut, lastPacketOut) {
+		t.Errorf("Expected outgoing packet %v, received %v", expectedPacketOut, lastPacketOut)
+	}
+}
+
 func buildAgentThatWrites(b []byte) (agent *ResponseAgent, conn *test_helpers.MockPacketConn, addr net.Addr) {
 	conn = &test_helpers.MockPacketConn{
 		WriteToFunc: func(b []byte, a net.Addr) (int, error) {

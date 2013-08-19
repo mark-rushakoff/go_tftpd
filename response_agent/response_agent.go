@@ -25,3 +25,7 @@ func (a *ResponseAgent) SendAck(ack *safe_packets.SafeAck) {
 func (a *ResponseAgent) SendErrorPacket(e *safe_packets.SafeError) {
 	a.conn.WriteTo(e.Bytes(), a.clientAddr)
 }
+
+func (a *ResponseAgent) SendData(data *safe_packets.SafeData) {
+	a.conn.WriteTo(data.Bytes(), a.clientAddr)
+}
