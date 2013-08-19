@@ -13,6 +13,12 @@ type MockPacketConn struct {
 	SetDeadlineFunc      func(time.Time) error
 	SetReadDeadlineFunc  func(time.Time) error
 	SetWriteDeadlineFunc func(time.Time) error
+
+	lastPacketOut struct {
+		packet []byte
+		addr   net.Addr
+	}
+	sentAnyPackets bool
 }
 
 func (c *MockPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
@@ -20,6 +26,10 @@ func (c *MockPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 }
 
 func (c *MockPacketConn) WriteTo(b []byte, addr net.Addr) (n int, err error) {
+	c.lastPacketOut.packet = b
+	c.lastPacketOut.addr = addr
+	c.sentAnyPackets = true
+
 	return c.WriteToFunc(b, addr)
 }
 
@@ -38,4 +48,11 @@ func (c *MockPacketConn) SetReadDeadline(t time.Time) error {
 }
 func (c *MockPacketConn) SetWriteDeadline(t time.Time) error {
 	return c.SetWriteDeadlineFunc(t)
+}
+
+func (c *MockPacketConn) LastPacketOut() (packet []byte, addr net.Addr, ok bool) {
+	packet = c.lastPacketOut.packet
+	addr = c.lastPacketOut.addr
+	ok = c.sentAnyPackets
+	return
 }
