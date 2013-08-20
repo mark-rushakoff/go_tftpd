@@ -9,12 +9,20 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
-func TestNewReadSession(t *testing.T) {
+func TestBegin(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 	conn := &test_helpers.MockPacketConn{}
 	addr := &test_helpers.MockAddr{}
 
-	NewReadSession(conn, addr, responseAgent, strings.NewReader("Hello!"))
+	config := ReadSessionConfig{
+		Conn:          conn,
+		Addr:          addr,
+		ResponseAgent: responseAgent,
+		Reader:        strings.NewReader("Hello!"),
+		BlockSize:     512,
+	}
+	session := &ReadSession{config}
+	session.Begin()
 
 	if responseAgent.TotalMessagesSent() != 2 {
 		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
