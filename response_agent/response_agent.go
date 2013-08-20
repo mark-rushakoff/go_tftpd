@@ -11,6 +11,12 @@ type ResponseAgent struct {
 	clientAddr net.Addr
 }
 
+type ResponderAgent interface {
+	SendAck(ack *safe_packets.SafeAck)
+	SendErrorPacket(e *safe_packets.SafeError)
+	SendData(data *safe_packets.SafeData)
+}
+
 func NewResponseAgent(conn net.PacketConn, clientAddr net.Addr) *ResponseAgent {
 	return &ResponseAgent{
 		conn:       conn,
