@@ -6,17 +6,12 @@ import (
 	"testing"
 
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
 func TestBegin(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
-	conn := &test_helpers.MockPacketConn{}
-	addr := &test_helpers.MockAddr{}
 
 	config := ReadSessionConfig{
-		Conn:          conn,
-		Addr:          addr,
 		ResponseAgent: responseAgent,
 		Reader:        strings.NewReader("Hello!"),
 		BlockSize:     512,
