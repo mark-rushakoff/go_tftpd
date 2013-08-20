@@ -28,7 +28,16 @@ func (a *MockResponseAgent) MostRecentAck() *safe_packets.SafeAck {
 	if len(a.acks) == 0 {
 		return nil
 	}
+
 	return a.acks[len(a.acks)-1]
+}
+
+func (a *MockResponseAgent) MostRecentData() *safe_packets.SafeData {
+	if len(a.data) == 0 {
+		return nil
+	}
+
+	return a.data[len(a.data)-1]
 }
 
 func (a *MockResponseAgent) SendAck(ack *safe_packets.SafeAck) {

@@ -1,23 +1,23 @@
 package read_session
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
 func TestNewReadSession(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
-	readRequest := safe_packets.NewSafeReadRequest("foo", safe_packets.NetAscii)
 	conn := &test_helpers.MockPacketConn{}
 	addr := &test_helpers.MockAddr{}
 
-	NewReadSession(conn, addr, responseAgent, readRequest)
+	NewReadSession(conn, addr, responseAgent, strings.NewReader("Hello!"))
 
-	if responseAgent.TotalMessagesSent() != 1 {
-		t.Fatalf("Expected 1 message sent but %v messages were sent", responseAgent.TotalMessagesSent())
+	if responseAgent.TotalMessagesSent() != 2 {
+		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
 	}
 
 	sentAck := responseAgent.MostRecentAck()
@@ -25,5 +25,18 @@ func TestNewReadSession(t *testing.T) {
 	expectedBlockNumber := uint16(0)
 	if actualBlockNumber != expectedBlockNumber {
 		t.Errorf("Expected ReadSession to ack with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+		bytes.Equal(nil, nil)
+	}
+
+	sentData := responseAgent.MostRecentData()
+	actualBlockNumber = sentData.BlockNumber
+	expectedBlockNumber = uint16(1)
+	if actualBlockNumber != expectedBlockNumber {
+		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+	}
+
+	expectedData := []byte("Hello!")
+	if !bytes.Equal(sentData.Data.Data, expectedData) {
+		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
 	}
 }
