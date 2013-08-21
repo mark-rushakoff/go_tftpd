@@ -1,6 +1,8 @@
 package read_session
 
 import (
+	"fmt"
+
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
@@ -35,6 +37,10 @@ func (s *ReadSession) watch() {
 			if ack.BlockNumber == s.currentBlockNumber {
 				s.nextBlock()
 				s.sendData()
+			} else if ack.BlockNumber == s.currentBlockNumber-1 {
+				s.sendData()
+			} else {
+				panic(fmt.Sprintf("Could not handle received ack: %v", ack))
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
@@ -86,6 +87,82 @@ func TestMultipleDataPackets(t *testing.T) {
 	}
 
 	expectedData = []byte("abcdef")
+	if !bytes.Equal(sentData.Data.Data, expectedData) {
+		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
+	}
+}
+
+func TestOldAck(t *testing.T) {
+	responseAgent := response_agent.MakeMockResponseAgent()
+
+	config := ReadSessionConfig{
+		ResponseAgent: responseAgent,
+		Reader:        strings.NewReader("12345678abcdefgh876543210"),
+		BlockSize:     8,
+	}
+	session := NewReadSession(config)
+	session.Begin()
+
+	if responseAgent.TotalMessagesSent() != 2 {
+		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
+	}
+
+	sentData := responseAgent.MostRecentData()
+	actualBlockNumber := sentData.BlockNumber
+	expectedBlockNumber := uint16(1)
+	if actualBlockNumber != expectedBlockNumber {
+		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+	}
+
+	expectedData := []byte("12345678")
+	if !bytes.Equal(sentData.Data.Data, expectedData) {
+		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
+	}
+
+	responseAgent.Reset()
+	session.Ack <- safe_packets.NewSafeAck(1)
+
+	sentData = responseAgent.MostRecentData()
+	if sentData == nil {
+		t.Fatalf("Data not sent")
+	}
+	actualBlockNumber = sentData.BlockNumber
+	expectedBlockNumber = uint16(2)
+	if actualBlockNumber != expectedBlockNumber {
+		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+	}
+
+	expectedData = []byte("abcdefgh")
+	if !bytes.Equal(sentData.Data.Data, expectedData) {
+		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
+	}
+
+	if responseAgent.TotalMessagesSent() != 1 {
+		t.Fatalf("Expected 1 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
+	}
+
+	responseAgent.Reset()
+	session.Ack <- safe_packets.NewSafeAck(1)
+
+	// yield to the session's channel... probably a better way to do this? Or maybe it's just a test artifact?
+	time.Sleep(1 * time.Millisecond)
+
+	if responseAgent.TotalMessagesSent() != 1 {
+		t.Fatalf("Expected 1 message sent but %v messages were sent", responseAgent.TotalMessagesSent())
+	}
+
+	sentData = responseAgent.MostRecentData()
+	if sentData == nil {
+		t.Logf("Total messages before... (%v)", responseAgent.TotalMessagesSent())
+		t.Fatalf("Data not sent")
+	}
+	actualBlockNumber = sentData.BlockNumber
+	expectedBlockNumber = uint16(2)
+	if actualBlockNumber != expectedBlockNumber {
+		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+	}
+
+	expectedData = []byte("abcdefgh")
 	if !bytes.Equal(sentData.Data.Data, expectedData) {
 		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
 	}
