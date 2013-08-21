@@ -1,4 +1,5 @@
 # go_tftpd
+[![Build Status](https://travis-ci.org/mark-rushakoff/go_tftpd.png?branch=master)](https://travis-ci.org/mark-rushakoff/go_tftpd)
 
 An implementation of a TFTP daemon written in Go.
 
