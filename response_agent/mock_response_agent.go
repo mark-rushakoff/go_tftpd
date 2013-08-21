@@ -54,3 +54,10 @@ func (a *MockResponseAgent) SendData(data *safe_packets.SafeData) {
 	a.data = append(a.data, data)
 	a.totalMessagesSent++
 }
+
+func (a *MockResponseAgent) Reset() {
+	a.acks = a.acks[:0]
+	a.errors = a.errors[:0]
+	a.data = a.data[:0]
+	a.totalMessagesSent = 0
+}

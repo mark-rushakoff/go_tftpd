@@ -6,13 +6,50 @@ import (
 
 type ReadSession struct {
 	config ReadSessionConfig
+	Ack    chan *safe_packets.SafeAck
+
+	currentBlockNumber uint16
+	currentDataPacket  *safe_packets.SafeData
+}
+
+func NewReadSession(config ReadSessionConfig) *ReadSession {
+	return &ReadSession{
+		config: config,
+		Ack:    make(chan *safe_packets.SafeAck),
+	}
 }
 
 func (s *ReadSession) Begin() {
 	s.config.ResponseAgent.SendAck(safe_packets.NewSafeAck(0))
 
+	s.nextBlock()
+	s.sendData()
+
+	go s.watch()
+}
+
+func (s *ReadSession) watch() {
+	for {
+		select {
+		case ack := <-s.Ack:
+			if ack.BlockNumber == s.currentBlockNumber {
+				s.nextBlock()
+				s.sendData()
+			}
+		}
+	}
+}
+
+func (s *ReadSession) sendData() {
+	s.config.ResponseAgent.SendData(s.currentDataPacket)
+}
+
+func (s *ReadSession) nextBlock() {
+	s.currentBlockNumber++
+
 	dataBytes := make([]byte, s.config.BlockSize)
 	bytesRead, _ := s.config.Reader.Read(dataBytes) // TODO: be defensive
 	dataBytes = dataBytes[:bytesRead]
-	s.config.ResponseAgent.SendData(safe_packets.NewSafeData(1, dataBytes))
+
+	s.currentDataPacket = safe_packets.NewSafeData(s.currentBlockNumber, dataBytes)
 }
