@@ -2,6 +2,7 @@ package read_session
 
 import (
 	"bytes"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,9 +22,7 @@ func TestBegin(t *testing.T) {
 	session := NewReadSession(config)
 	session.Begin()
 
-	if responseAgent.TotalMessagesSent() != 2 {
-		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
-	}
+	assertTotalMessagesSent(t, responseAgent, 2)
 
 	sentAck := responseAgent.MostRecentAck()
 	actualBlockNumber := sentAck.BlockNumber
@@ -34,16 +33,7 @@ func TestBegin(t *testing.T) {
 	}
 
 	sentData := responseAgent.MostRecentData()
-	actualBlockNumber = sentData.BlockNumber
-	expectedBlockNumber = uint16(1)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-	}
-
-	expectedData := []byte("Hello!")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
-	}
+	assertDataMessage(t, sentData, 1, []byte("Hello!"))
 }
 
 func TestMultipleDataPackets(t *testing.T) {
@@ -57,39 +47,16 @@ func TestMultipleDataPackets(t *testing.T) {
 	session := NewReadSession(config)
 	session.Begin()
 
-	if responseAgent.TotalMessagesSent() != 2 {
-		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
-	}
+	assertTotalMessagesSent(t, responseAgent, 2)
 
 	sentData := responseAgent.MostRecentData()
-	actualBlockNumber := sentData.BlockNumber
-	expectedBlockNumber := uint16(1)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-	}
-
-	expectedData := []byte("12345678")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
-	}
+	assertDataMessage(t, sentData, 1, []byte("12345678"))
 
 	responseAgent.Reset()
 	session.Ack <- safe_packets.NewSafeAck(1)
 
 	sentData = responseAgent.MostRecentData()
-	if sentData == nil {
-		t.Fatalf("Data not sent")
-	}
-	actualBlockNumber = sentData.BlockNumber
-	expectedBlockNumber = uint16(2)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-	}
-
-	expectedData = []byte("abcdef")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
-	}
+	assertDataMessage(t, sentData, 2, []byte("abcdef"))
 }
 
 func TestOldAck(t *testing.T) {
@@ -103,43 +70,18 @@ func TestOldAck(t *testing.T) {
 	session := NewReadSession(config)
 	session.Begin()
 
-	if responseAgent.TotalMessagesSent() != 2 {
-		t.Fatalf("Expected 2 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
-	}
+	assertTotalMessagesSent(t, responseAgent, 2)
 
 	sentData := responseAgent.MostRecentData()
-	actualBlockNumber := sentData.BlockNumber
-	expectedBlockNumber := uint16(1)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-	}
-
-	expectedData := []byte("12345678")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
-	}
+	assertDataMessage(t, sentData, 1, []byte("12345678"))
 
 	responseAgent.Reset()
 	session.Ack <- safe_packets.NewSafeAck(1)
 
 	sentData = responseAgent.MostRecentData()
-	if sentData == nil {
-		t.Fatalf("Data not sent")
-	}
-	actualBlockNumber = sentData.BlockNumber
-	expectedBlockNumber = uint16(2)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-	}
+	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
 
-	expectedData = []byte("abcdefgh")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
-	}
-
-	if responseAgent.TotalMessagesSent() != 1 {
-		t.Fatalf("Expected 1 messages sent but %v messages were sent", responseAgent.TotalMessagesSent())
-	}
+	assertTotalMessagesSent(t, responseAgent, 1)
 
 	responseAgent.Reset()
 	session.Ack <- safe_packets.NewSafeAck(1)
@@ -147,23 +89,33 @@ func TestOldAck(t *testing.T) {
 	// yield to the session's channel... probably a better way to do this? Or maybe it's just a test artifact?
 	time.Sleep(1 * time.Millisecond)
 
-	if responseAgent.TotalMessagesSent() != 1 {
-		t.Fatalf("Expected 1 message sent but %v messages were sent", responseAgent.TotalMessagesSent())
-	}
+	assertTotalMessagesSent(t, responseAgent, 1)
 
 	sentData = responseAgent.MostRecentData()
-	if sentData == nil {
-		t.Logf("Total messages before... (%v)", responseAgent.TotalMessagesSent())
+	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
+}
+
+func assertDataMessage(t *testing.T, data *safe_packets.SafeData, expectedBlockNumber uint16, expectedData []byte) {
+	if data == nil {
 		t.Fatalf("Data not sent")
 	}
-	actualBlockNumber = sentData.BlockNumber
-	expectedBlockNumber = uint16(2)
+
+	actualBlockNumber := data.BlockNumber
 	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
+		_, file, line, _ := runtime.Caller(1)
+		t.Errorf("Expected ReadSession to send data with block number %v, received %v at %v:%v", expectedBlockNumber, actualBlockNumber, file, line)
 	}
 
-	expectedData = []byte("abcdefgh")
-	if !bytes.Equal(sentData.Data.Data, expectedData) {
-		t.Errorf("Expected ReadSession to send data %v, received %v", expectedData, sentData.Data.Data)
+	if !bytes.Equal(data.Data.Data, expectedData) {
+		_, file, line, _ := runtime.Caller(1)
+		t.Errorf("Expected ReadSession to send data %v, received %v at %v:%v", expectedData, data.Data.Data, file, line)
+	}
+}
+
+func assertTotalMessagesSent(t *testing.T, responseAgent *response_agent.MockResponseAgent, total int) {
+	actualTotal := responseAgent.TotalMessagesSent()
+	if actualTotal != total {
+		_, file, line, _ := runtime.Caller(1)
+		t.Fatalf("Expected %v message(s) sent but %v message(s) were sent at %v:%v", total, actualTotal, file, line)
 	}
 }
