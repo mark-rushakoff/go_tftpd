@@ -17,12 +17,17 @@ type timeoutController struct {
 }
 
 func NewTimeoutController(duration time.Duration, tryLimit uint) TimeoutController {
-	return &timeoutController{
+	c := &timeoutController{
 		duration:       duration,
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,
 		timeout:        make(chan bool, tryLimit),
+		timer:          time.NewTimer(duration),
 	}
+
+	c.timer.Stop()
+
+	return c
 }
 
 type TimeoutController interface {
@@ -36,7 +41,7 @@ type TimeoutController interface {
 
 	// Disables any remaining countdown timer.
 	// May only be followed by a call to Restart.
-	Stop() error
+	Stop()
 
 	// Triggered when a countdown elapses.
 	// Sends true when the countdown has expired (i.e. the maximum number of retries has been consumed).
@@ -49,7 +54,7 @@ func (c *timeoutController) Countdown() error {
 	}
 
 	go func() {
-		c.timer = time.NewTimer(c.duration)
+		c.timer.Reset(c.duration)
 		select {
 		case <-c.timer.C:
 			c.triesRemaining--
@@ -64,17 +69,11 @@ func (c *timeoutController) Timeout() chan bool {
 	return c.timeout
 }
 
-func (c *timeoutController) Stop() error {
-	if c.timer == nil {
-		return errors.New("tried to stop before countdown took effect")
-	}
-
+func (c *timeoutController) Stop() {
 	c.timer.Stop()
-	return nil
 }
 
 func (c *timeoutController) Restart() {
 	c.Stop()
 	c.triesRemaining = c.tryLimit
-	c.timer = nil
 }

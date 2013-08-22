@@ -91,16 +91,3 @@ func TestStopCancelsCountdown(t *testing.T) {
 		// success
 	}
 }
-
-func TestStopBeforeCountdownReturnsError(t *testing.T) {
-	controller := NewTimeoutController(10*time.Millisecond, 2)
-	err := controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
-	}
-
-	err = controller.Stop()
-	if err == nil {
-		t.Fatalf("Expected error but did not get one")
-	}
-}
