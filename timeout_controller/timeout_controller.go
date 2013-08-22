@@ -6,8 +6,8 @@ import (
 )
 
 type timeoutController struct {
-	duration   time.Duration
-	totalTries uint
+	duration time.Duration
+	tryLimit uint
 
 	triesRemaining uint
 
@@ -16,11 +16,12 @@ type timeoutController struct {
 	timer *time.Timer
 }
 
-func NewTimeoutController(duration time.Duration, totalTries uint) TimeoutController {
+func NewTimeoutController(duration time.Duration, tryLimit uint) TimeoutController {
 	return &timeoutController{
-		duration:   duration,
-		totalTries: totalTries,
-		timeout:    make(chan bool, totalTries),
+		duration:       duration,
+		tryLimit:       tryLimit,
+		triesRemaining: tryLimit,
+		timeout:        make(chan bool, tryLimit),
 	}
 }
 
@@ -31,7 +32,7 @@ type TimeoutController interface {
 
 	// Begin an entirely new timeout cycle.
 	// This resets both the current countdown timer and the number of retries consumed.
-	/* Restart() */
+	Restart()
 
 	// Disables any remaining countdown timer.
 	// May only be followed by a call to Restart.
@@ -43,7 +44,7 @@ type TimeoutController interface {
 }
 
 func (c *timeoutController) Countdown() error {
-	if c.totalTries == 0 {
+	if c.triesRemaining == 0 {
 		return errors.New("No tries remaining")
 	}
 
@@ -51,8 +52,8 @@ func (c *timeoutController) Countdown() error {
 		c.timer = time.NewTimer(c.duration)
 		select {
 		case <-c.timer.C:
-			c.totalTries--
-			c.timeout <- (c.totalTries == 0)
+			c.triesRemaining--
+			c.timeout <- (c.triesRemaining == 0)
 		}
 	}()
 
@@ -70,4 +71,10 @@ func (c *timeoutController) Stop() error {
 
 	c.timer.Stop()
 	return nil
+}
+
+func (c *timeoutController) Restart() {
+	c.Stop()
+	c.triesRemaining = c.tryLimit
+	c.timer = nil
 }
