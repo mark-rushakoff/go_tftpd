@@ -36,6 +36,8 @@ func TestBegin(t *testing.T) {
 
 	sentData := responseAgent.MostRecentData()
 	assertDataMessage(t, sentData, 1, []byte("Hello!"))
+
+	session.assertNotFinished(t)
 }
 
 func TestMultipleDataPackets(t *testing.T) {
@@ -60,6 +62,8 @@ func TestMultipleDataPackets(t *testing.T) {
 
 	sentData = responseAgent.MostRecentData()
 	assertDataMessage(t, sentData, 2, []byte("abcdef"))
+
+	session.assertNotFinished(t)
 }
 
 func TestOldAck(t *testing.T) {
@@ -97,6 +101,8 @@ func TestOldAck(t *testing.T) {
 
 	sentData = responseAgent.MostRecentData()
 	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
+
+	session.assertNotFinished(t)
 }
 
 func TestTimeoutControllerIntegration(t *testing.T) {
@@ -124,6 +130,7 @@ func TestTimeoutControllerIntegration(t *testing.T) {
 
 	sentData = responseAgent.MostRecentData()
 	assertDataMessage(t, sentData, 1, []byte("12345678"))
+	session.assertNotFinished(t)
 
 	responseAgent.Reset()
 	timeoutController.Timeout() <- true // expired, so stop sending
@@ -131,6 +138,8 @@ func TestTimeoutControllerIntegration(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 
 	assertTotalMessagesSent(t, responseAgent, 0)
+
+	session.assertFinished(t)
 }
 
 func assertDataMessage(t *testing.T, data *safe_packets.SafeData, expectedBlockNumber uint16, expectedData []byte) {
@@ -156,5 +165,25 @@ func assertTotalMessagesSent(t *testing.T, responseAgent *response_agent.MockRes
 	if actualTotal != total {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("Expected %v message(s) sent but %v message(s) were sent at %v:%v", total, actualTotal, file, line)
+	}
+}
+
+func (s *ReadSession) assertFinished(t *testing.T) {
+	select {
+	case <-s.Finished:
+		// ok
+	case <-time.After(1 * time.Millisecond):
+		_, file, line, _ := runtime.Caller(1)
+		t.Fatalf("Session was supposed to be finished but was not at %v:%v", file, line)
+	}
+}
+
+func (s *ReadSession) assertNotFinished(t *testing.T) {
+	select {
+	case <-s.Finished:
+		_, file, line, _ := runtime.Caller(1)
+		t.Fatalf("Session was supposed to NOT be finished but was at %v:%v", file, line)
+	case <-time.After(1 * time.Millisecond):
+		// ok
 	}
 }

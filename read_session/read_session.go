@@ -7,8 +7,9 @@ import (
 )
 
 type ReadSession struct {
-	config ReadSessionConfig
-	Ack    chan *safe_packets.SafeAck
+	config   ReadSessionConfig
+	Ack      chan *safe_packets.SafeAck
+	Finished chan bool
 
 	currentBlockNumber uint16
 	currentDataPacket  *safe_packets.SafeData
@@ -16,8 +17,9 @@ type ReadSession struct {
 
 func NewReadSession(config ReadSessionConfig) *ReadSession {
 	return &ReadSession{
-		config: config,
-		Ack:    make(chan *safe_packets.SafeAck),
+		config:   config,
+		Ack:      make(chan *safe_packets.SafeAck),
+		Finished: make(chan bool),
 	}
 }
 
@@ -44,7 +46,10 @@ func (s *ReadSession) watch() {
 			}
 		case isExpired := <-s.config.TimeoutController.Timeout():
 			if isExpired {
-				// do something here
+				go func() {
+					s.Finished <- true
+				}()
+				return
 			} else {
 				s.sendData()
 			}
