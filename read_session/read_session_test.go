@@ -9,15 +9,17 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
 func TestBegin(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
 	config := ReadSessionConfig{
-		ResponseAgent: responseAgent,
-		Reader:        strings.NewReader("Hello!"),
-		BlockSize:     512,
+		ResponseAgent:     responseAgent,
+		Reader:            strings.NewReader("Hello!"),
+		BlockSize:         512,
+		TimeoutController: timeout_controller.MakeMockTimeoutController(),
 	}
 	session := NewReadSession(config)
 	session.Begin()
@@ -40,9 +42,10 @@ func TestMultipleDataPackets(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
 	config := ReadSessionConfig{
-		ResponseAgent: responseAgent,
-		Reader:        strings.NewReader("12345678abcdef"),
-		BlockSize:     8,
+		ResponseAgent:     responseAgent,
+		Reader:            strings.NewReader("12345678abcdef"),
+		BlockSize:         8,
+		TimeoutController: timeout_controller.MakeMockTimeoutController(),
 	}
 	session := NewReadSession(config)
 	session.Begin()
@@ -63,9 +66,10 @@ func TestOldAck(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
 	config := ReadSessionConfig{
-		ResponseAgent: responseAgent,
-		Reader:        strings.NewReader("12345678abcdefgh876543210"),
-		BlockSize:     8,
+		ResponseAgent:     responseAgent,
+		Reader:            strings.NewReader("12345678abcdefgh876543210"),
+		BlockSize:         8,
+		TimeoutController: timeout_controller.MakeMockTimeoutController(),
 	}
 	session := NewReadSession(config)
 	session.Begin()
@@ -95,9 +99,44 @@ func TestOldAck(t *testing.T) {
 	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
 }
 
+func TestTimeoutControllerIntegration(t *testing.T) {
+	responseAgent := response_agent.MakeMockResponseAgent()
+	timeoutController := timeout_controller.MakeMockTimeoutController()
+
+	config := ReadSessionConfig{
+		ResponseAgent:     responseAgent,
+		Reader:            strings.NewReader("12345678abcdefgh876543210"),
+		BlockSize:         8,
+		TimeoutController: timeoutController,
+	}
+	session := NewReadSession(config)
+	session.Begin()
+
+	assertTotalMessagesSent(t, responseAgent, 2)
+
+	sentData := responseAgent.MostRecentData()
+	assertDataMessage(t, sentData, 1, []byte("12345678"))
+
+	responseAgent.Reset()
+	timeoutController.Timeout() <- false // not expired, so re-send
+
+	time.Sleep(1 * time.Millisecond)
+
+	sentData = responseAgent.MostRecentData()
+	assertDataMessage(t, sentData, 1, []byte("12345678"))
+
+	responseAgent.Reset()
+	timeoutController.Timeout() <- true // expired, so stop sending
+
+	time.Sleep(1 * time.Millisecond)
+
+	assertTotalMessagesSent(t, responseAgent, 0)
+}
+
 func assertDataMessage(t *testing.T, data *safe_packets.SafeData, expectedBlockNumber uint16, expectedData []byte) {
 	if data == nil {
-		t.Fatalf("Data not sent")
+		_, file, line, _ := runtime.Caller(1)
+		t.Fatalf("Data not sent at %v:%v", file, line)
 	}
 
 	actualBlockNumber := data.BlockNumber

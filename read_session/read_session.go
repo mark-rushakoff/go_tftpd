@@ -42,6 +42,12 @@ func (s *ReadSession) watch() {
 			} else {
 				panic(fmt.Sprintf("Could not handle received ack: %v", ack))
 			}
+		case isExpired := <-s.config.TimeoutController.Timeout():
+			if isExpired {
+				// do something here
+			} else {
+				s.sendData()
+			}
 		}
 	}
 }
