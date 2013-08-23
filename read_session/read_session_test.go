@@ -142,6 +142,25 @@ func TestTimeoutControllerIntegration(t *testing.T) {
 	session.assertFinished(t)
 }
 
+func TestCleanFinish(t *testing.T) {
+	responseAgent := response_agent.MakeMockResponseAgent()
+
+	config := ReadSessionConfig{
+		ResponseAgent:     responseAgent,
+		Reader:            strings.NewReader("Hello!"),
+		BlockSize:         512,
+		TimeoutController: timeout_controller.MakeMockTimeoutController(),
+	}
+	session := NewReadSession(config)
+	session.Begin()
+
+	assertTotalMessagesSent(t, responseAgent, 2)
+
+	session.Ack <- safe_packets.NewSafeAck(1)
+
+	session.assertFinished(t)
+}
+
 func assertDataMessage(t *testing.T, data *safe_packets.SafeData, expectedBlockNumber uint16, expectedData []byte) {
 	if data == nil {
 		_, file, line, _ := runtime.Caller(1)

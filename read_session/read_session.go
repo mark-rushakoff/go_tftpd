@@ -2,6 +2,7 @@ package read_session
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
@@ -37,8 +38,12 @@ func (s *ReadSession) watch() {
 		select {
 		case ack := <-s.Ack:
 			if ack.BlockNumber == s.currentBlockNumber {
-				s.nextBlock()
-				s.sendData()
+				isFinished := s.nextBlock()
+				if isFinished {
+					s.Finished <- true
+				} else {
+					s.sendData()
+				}
 			} else if ack.BlockNumber == s.currentBlockNumber-1 {
 				s.sendData()
 			} else {
@@ -61,12 +66,20 @@ func (s *ReadSession) sendData() {
 	s.config.ResponseAgent.SendData(s.currentDataPacket)
 }
 
-func (s *ReadSession) nextBlock() {
-	s.currentBlockNumber++
-
+func (s *ReadSession) nextBlock() (isFinished bool) {
 	dataBytes := make([]byte, s.config.BlockSize)
-	bytesRead, _ := s.config.Reader.Read(dataBytes) // TODO: be defensive
+	bytesRead, err := s.config.Reader.Read(dataBytes)
+	if bytesRead == 0 {
+		if err == io.EOF {
+			return true
+		} else {
+			panic("Not sure what to do with a non-eof io error and 0 bytes read")
+		}
+	}
+
 	dataBytes = dataBytes[:bytesRead]
 
+	s.currentBlockNumber++
 	s.currentDataPacket = safe_packets.NewSafeData(s.currentBlockNumber, dataBytes)
+	return false
 }
