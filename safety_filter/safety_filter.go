@@ -14,7 +14,8 @@ type SafetyFilter struct {
 
 func MakeSafetyFilter(requestAgent *request_agent.RequestAgent) *SafetyFilter {
 	filter := &SafetyFilter{
-		IncomingAck: make(chan *IncomingSafeAck),
+		IncomingAck:  make(chan *IncomingSafeAck),
+		IncomingRead: make(chan *IncomingSafeReadRequest),
 	}
 
 	go func() {
@@ -26,6 +27,9 @@ func MakeSafetyFilter(requestAgent *request_agent.RequestAgent) *SafetyFilter {
 					Ack:  safe_packets.NewSafeAck(incomingAck.Ack.BlockNumber),
 				}
 				filter.IncomingAck <- safeAck
+			case incomingRead := <-requestAgent.ReadRequest:
+				safeReadRequest := makeSafeReadRequest(incomingRead)
+				filter.IncomingRead <- safeReadRequest
 			}
 		}
 	}()
@@ -39,6 +43,18 @@ type IncomingSafeAck struct {
 }
 
 type IncomingSafeReadRequest struct {
-	Ack  *safe_packets.SafeReadRequest
+	Read *safe_packets.SafeReadRequest
 	Addr *net.Addr
+}
+
+func makeSafeReadRequest(incomingReadRequest *request_agent.IncomingReadRequest) *IncomingSafeReadRequest {
+	safeReadRequest := &safe_packets.SafeReadRequest{
+		Filename: incomingReadRequest.Read.Filename,
+		Mode:     safe_packets.NetAscii, // TODO: handle octet and invalid cases
+	}
+
+	return &IncomingSafeReadRequest{
+		Read: safeReadRequest,
+		Addr: nil,
+	}
 }

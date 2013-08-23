@@ -6,6 +6,7 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/request_agent"
+	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
 func TestConvertsAcksToSafeAcks(t *testing.T) {
@@ -37,5 +38,40 @@ func TestConvertsAcksToSafeAcks(t *testing.T) {
 	}
 }
 
-func TestConvertsReadsToSafeReads(t *testing.T) {
+func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
+	expectedFilename := "foobar"
+	modeString := "netascii"
+	expectedMode := safe_packets.NetAscii
+
+	requestAgent := request_agent.NewRequestAgent(nil)
+	safetyFilter := MakeSafetyFilter(requestAgent)
+
+	go func() {
+		fakeIncomingRead := &packets.ReadRequest{
+			Filename: expectedFilename,
+			Mode:     modeString,
+		}
+
+		fakeIncoming := &request_agent.IncomingReadRequest{
+			Read: fakeIncomingRead,
+		}
+
+		requestAgent.ReadRequest <- fakeIncoming
+	}()
+
+	select {
+	case incomingRead := <-safetyFilter.IncomingRead:
+		actualFilename := incomingRead.Read.Filename
+		if actualFilename != expectedFilename {
+			t.Errorf("Expected Filename '%v', but received '%v'", actualFilename, expectedFilename)
+		}
+
+		actualMode := incomingRead.Read.Mode
+		if actualMode != expectedMode {
+			t.Errorf("Expected Mode '%v', but received '%v'", actualMode, expectedMode)
+		}
+
+	case <-time.After(20 * time.Millisecond):
+		t.Fatalf("Did not receive read request in time")
+	}
 }
