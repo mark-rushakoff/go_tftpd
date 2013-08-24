@@ -21,27 +21,27 @@ type RequestAgent struct {
 
 type IncomingAck struct {
 	Ack  *packets.Ack
-	Addr *net.Addr
+	Addr net.Addr
 }
 
 type IncomingError struct {
 	Error *packets.Error
-	Addr  *net.Addr
+	Addr  net.Addr
 }
 
 type IncomingData struct {
 	Data *packets.Data
-	Addr *net.Addr
+	Addr net.Addr
 }
 
 type IncomingReadRequest struct {
 	Read *packets.ReadRequest
-	Addr *net.Addr
+	Addr net.Addr
 }
 
 type IncomingWriteRequest struct {
 	Write *packets.WriteRequest
-	Addr  *net.Addr
+	Addr  net.Addr
 }
 
 func NewRequestAgent(conn net.PacketConn) *RequestAgent {
@@ -66,7 +66,7 @@ func (a *RequestAgent) Read() {
 	b = b[:bytesRead]
 
 	if bytesRead < 3 {
-		go a.handleInvalidPacket(b, PacketTooShort, &addr)
+		go a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
 	}
 
@@ -79,21 +79,21 @@ func (a *RequestAgent) Read() {
 
 	switch opcode {
 	case packets.AckOpcode:
-		go a.handleAck(b, &addr)
+		go a.handleAck(b, addr)
 	case packets.DataOpcode:
-		go a.handleData(b, &addr)
+		go a.handleData(b, addr)
 	case packets.ReadOpcode:
-		go a.handleRead(b, &addr)
+		go a.handleRead(b, addr)
 	case packets.WriteOpcode:
-		go a.handleWrite(b, &addr)
+		go a.handleWrite(b, addr)
 	case packets.ErrorOpcode:
-		go a.handleError(b, &addr)
+		go a.handleError(b, addr)
 	default:
-		go a.handleInvalidPacket(b, InvalidOpcode, &addr)
+		go a.handleInvalidPacket(b, InvalidOpcode, addr)
 	}
 }
 
-func (a *RequestAgent) handleAck(b []byte, addr *net.Addr) {
+func (a *RequestAgent) handleAck(b []byte, addr net.Addr) {
 	if len(b) < 4 {
 		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
@@ -113,7 +113,7 @@ func (a *RequestAgent) handleAck(b []byte, addr *net.Addr) {
 	a.Ack <- &IncomingAck{&packets.Ack{blockNum}, addr}
 }
 
-func (a *RequestAgent) handleData(b []byte, addr *net.Addr) {
+func (a *RequestAgent) handleData(b []byte, addr net.Addr) {
 	if len(b) < 4 {
 		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
@@ -130,7 +130,7 @@ func (a *RequestAgent) handleData(b []byte, addr *net.Addr) {
 	a.Data <- &IncomingData{dataPacket, addr}
 }
 
-func (a *RequestAgent) handleError(b []byte, addr *net.Addr) {
+func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
 	if len(b) < 4 {
 		a.handleInvalidPacket(b, PacketTooShort, addr)
 		return
@@ -160,7 +160,7 @@ func (a *RequestAgent) handleError(b []byte, addr *net.Addr) {
 	a.Error <- &IncomingError{errorPacket, addr}
 }
 
-func (a *RequestAgent) handleRead(b []byte, addr *net.Addr) {
+func (a *RequestAgent) handleRead(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
 		read := &packets.ReadRequest{content.filename, content.readWriteMode}
@@ -170,7 +170,7 @@ func (a *RequestAgent) handleRead(b []byte, addr *net.Addr) {
 	}
 }
 
-func (a *RequestAgent) handleWrite(b []byte, addr *net.Addr) {
+func (a *RequestAgent) handleWrite(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
 		write := &packets.WriteRequest{content.filename, content.readWriteMode}
@@ -213,6 +213,6 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 	return
 }
 
-func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason, addr *net.Addr) {
+func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason, addr net.Addr) {
 	a.InvalidTransmission <- &InvalidTransmission{b, reason, addr}
 }

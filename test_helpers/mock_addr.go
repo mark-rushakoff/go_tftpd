@@ -1,12 +1,21 @@
 package test_helpers
 
 type MockAddr struct {
+	network string
+	str     string
+}
+
+func MakeMockAddr(network string, str string) *MockAddr {
+	return &MockAddr{
+		network: network,
+		str:     str,
+	}
 }
 
 func (a *MockAddr) Network() string {
-	return ""
+	return a.network
 }
 
 func (a *MockAddr) String() string {
-	return ""
+	return a.str
 }

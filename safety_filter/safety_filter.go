@@ -39,12 +39,12 @@ func MakeSafetyFilter(requestAgent *request_agent.RequestAgent) *SafetyFilter {
 
 type IncomingSafeAck struct {
 	Ack  *safe_packets.SafeAck
-	Addr *net.Addr
+	Addr net.Addr
 }
 
 type IncomingSafeReadRequest struct {
 	Read *safe_packets.SafeReadRequest
-	Addr *net.Addr
+	Addr net.Addr
 }
 
 func makeSafeReadRequest(incomingReadRequest *request_agent.IncomingReadRequest) *IncomingSafeReadRequest {
