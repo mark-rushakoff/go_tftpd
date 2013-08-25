@@ -7,6 +7,8 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
+type ReadSessionFactory func(*ReadSessionConfig) *ReadSession
+
 type ReadSession struct {
 	config   ReadSessionConfig
 	Ack      chan *safe_packets.SafeAck
