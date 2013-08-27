@@ -7,10 +7,10 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type ReadSessionFactory func(*ReadSessionConfig) *ReadSession
+type ReadSessionFactory func(string) *ReadSession
 
 type ReadSession struct {
-	config   ReadSessionConfig
+	Config   *ReadSessionConfig
 	Ack      chan *safe_packets.SafeAck
 	Finished chan bool
 
@@ -20,14 +20,22 @@ type ReadSession struct {
 
 func NewReadSession(config ReadSessionConfig) *ReadSession {
 	return &ReadSession{
-		config:   config,
+		Config:   &config, // TODO: accept a reference instead
 		Ack:      make(chan *safe_packets.SafeAck),
 		Finished: make(chan bool),
 	}
 }
 
 func (s *ReadSession) Begin() {
-	s.config.ResponseAgent.SendAck(safe_packets.NewSafeAck(0))
+	if s.Config == nil {
+		panic("nil config")
+	}
+
+	if s.Config.ResponseAgent == nil {
+		panic("nil response agent")
+	}
+
+	s.Config.ResponseAgent.SendAck(safe_packets.NewSafeAck(0))
 
 	s.nextBlock()
 	s.sendData()
@@ -36,6 +44,10 @@ func (s *ReadSession) Begin() {
 }
 
 func (s *ReadSession) watch() {
+	if s.Config.TimeoutController == nil {
+		panic("TimeoutController is nil")
+	}
+
 	for {
 		select {
 		case ack := <-s.Ack:
@@ -51,7 +63,7 @@ func (s *ReadSession) watch() {
 			} else {
 				panic(fmt.Sprintf("Could not handle received ack: %v", ack))
 			}
-		case isExpired := <-s.config.TimeoutController.Timeout():
+		case isExpired := <-s.Config.TimeoutController.Timeout():
 			if isExpired {
 				go func() {
 					s.Finished <- true
@@ -65,12 +77,16 @@ func (s *ReadSession) watch() {
 }
 
 func (s *ReadSession) sendData() {
-	s.config.ResponseAgent.SendData(s.currentDataPacket)
+	s.Config.ResponseAgent.SendData(s.currentDataPacket)
 }
 
 func (s *ReadSession) nextBlock() (isFinished bool) {
-	dataBytes := make([]byte, s.config.BlockSize)
-	bytesRead, err := s.config.Reader.Read(dataBytes)
+	dataBytes := make([]byte, s.Config.BlockSize)
+	if s.Config.Reader == nil {
+		panic("Config.Reader is nil")
+	}
+
+	bytesRead, err := s.Config.Reader.Read(dataBytes)
 	if bytesRead == 0 {
 		if err == io.EOF {
 			return true
