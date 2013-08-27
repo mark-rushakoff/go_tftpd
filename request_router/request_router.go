@@ -24,6 +24,8 @@ func (r *RequestRouter) Route() {
 		select {
 		case incomingRead := <-r.safetyFilter.IncomingRead:
 			r.sessionManager.ReadRequest <- incomingRead
+		case incomingAck := <-r.safetyFilter.IncomingAck:
+			r.sessionManager.Ack <- incomingAck
 		}
 	}
 }
