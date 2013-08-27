@@ -1,6 +1,7 @@
 package session_manager
 
 import (
+	"net"
 	"sync"
 
 	"github.com/mark-rushakoff/go_tftpd/read_session"
@@ -8,6 +9,7 @@ import (
 )
 
 type SessionManager struct {
+	Ack          chan *safety_filter.IncomingSafeAck
 	ReadRequest  chan *safety_filter.IncomingSafeReadRequest
 	readSessions map[string]*read_session.ReadSession
 
@@ -17,6 +19,7 @@ type SessionManager struct {
 
 func NewSessionManager(readSessionFactory read_session.ReadSessionFactory) *SessionManager {
 	return &SessionManager{
+		Ack:          make(chan *safety_filter.IncomingSafeAck),
 		ReadRequest:  make(chan *safety_filter.IncomingSafeReadRequest),
 		readSessions: make(map[string]*read_session.ReadSession),
 
@@ -29,6 +32,8 @@ func (m *SessionManager) Watch() {
 		select {
 		case incomingReadRequest := <-m.ReadRequest:
 			m.makeReadSessionFromIncomingRequest(incomingReadRequest)
+		case incomingAck := <-m.Ack:
+			m.sendAckToReadSession(incomingAck)
 		}
 	}
 }
@@ -40,10 +45,19 @@ func (m *SessionManager) makeReadSessionFromIncomingRequest(incomingReadRequest 
 	if session.Config == nil {
 		panic("made session with a nil config")
 	}
-	m.readSessions[sessionKey(incomingReadRequest)] = session
+	m.readSessions[sessionKey(incomingReadRequest.Addr)] = session
 	session.Begin()
 }
 
-func sessionKey(incomingReadRequest *safety_filter.IncomingSafeReadRequest) string {
-	return incomingReadRequest.Addr.String()
+func (m *SessionManager) sendAckToReadSession(incomingAck *safety_filter.IncomingSafeAck) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	session := m.readSessions[sessionKey(incomingAck.Addr)]
+	go func() {
+		session.Ack <- incomingAck.Ack
+	}()
+}
+
+func sessionKey(addr net.Addr) string {
+	return addr.String()
 }

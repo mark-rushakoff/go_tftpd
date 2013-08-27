@@ -104,8 +104,34 @@ func TestIncomingAckIsRoutedToCorrectSession(t *testing.T) {
 		t.Fatalf("Received incorrect data %v, expected %v", responseAgentB.MostRecentData(), expectedData)
 	}
 
-  responseAgentA.Reset()
-  responseAgentB.Reset()
+	responseAgentA.Reset()
+	responseAgentB.Reset()
 
-	// TODO: Ack the data and assert the next packet is sent
+	go func() {
+		manager.Ack <- &safety_filter.IncomingSafeAck{
+			Ack:  safe_packets.NewSafeAck(1),
+			Addr: test_helpers.MakeMockAddr("fakenet", "a"),
+		}
+	}()
+
+	runtime.Gosched()
+
+	expectedData = safe_packets.NewSafeData(2, []byte("b"))
+	if !responseAgentA.MostRecentData().Equals(expectedData) {
+		t.Fatalf("Received incorrect data %v, expected %v", responseAgentA.MostRecentData(), expectedData)
+	}
+
+	go func() {
+		manager.Ack <- &safety_filter.IncomingSafeAck{
+			Ack:  safe_packets.NewSafeAck(1),
+			Addr: test_helpers.MakeMockAddr("fakenet", "b"),
+		}
+	}()
+
+	runtime.Gosched()
+
+	expectedData = safe_packets.NewSafeData(2, []byte("e"))
+	if !responseAgentB.MostRecentData().Equals(expectedData) {
+		t.Fatalf("Received incorrect data %v, expected %v", responseAgentB.MostRecentData(), expectedData)
+	}
 }
