@@ -24,3 +24,7 @@ func (data *SafeData) Bytes() []byte {
 	buf.Write(data.Data.Data)
 	return buf.Bytes()
 }
+
+func (data *SafeData) Equals(other *SafeData) bool {
+	return data.BlockNumber == other.BlockNumber && bytes.Equal(data.Data.Data, other.Data.Data)
+}
