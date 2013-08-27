@@ -18,9 +18,9 @@ type ReadSession struct {
 	currentDataPacket  *safe_packets.SafeData
 }
 
-func NewReadSession(config ReadSessionConfig) *ReadSession {
+func NewReadSession(config *ReadSessionConfig) *ReadSession {
 	return &ReadSession{
-		Config:   &config, // TODO: accept a reference instead
+		Config:   config,
 		Ack:      make(chan *safe_packets.SafeAck),
 		Finished: make(chan bool),
 	}

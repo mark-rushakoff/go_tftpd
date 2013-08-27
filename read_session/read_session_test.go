@@ -15,7 +15,7 @@ import (
 func TestBegin(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
-	config := ReadSessionConfig{
+	config := &ReadSessionConfig{
 		ResponseAgent:     responseAgent,
 		Reader:            strings.NewReader("Hello!"),
 		BlockSize:         512,
@@ -43,7 +43,7 @@ func TestBegin(t *testing.T) {
 func TestMultipleDataPackets(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
-	config := ReadSessionConfig{
+	config := &ReadSessionConfig{
 		ResponseAgent:     responseAgent,
 		Reader:            strings.NewReader("12345678abcdef"),
 		BlockSize:         8,
@@ -69,7 +69,7 @@ func TestMultipleDataPackets(t *testing.T) {
 func TestOldAck(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
-	config := ReadSessionConfig{
+	config := &ReadSessionConfig{
 		ResponseAgent:     responseAgent,
 		Reader:            strings.NewReader("12345678abcdefgh876543210"),
 		BlockSize:         8,
@@ -109,7 +109,7 @@ func TestTimeoutControllerIntegration(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 	timeoutController := timeout_controller.MakeMockTimeoutController()
 
-	config := ReadSessionConfig{
+	config := &ReadSessionConfig{
 		ResponseAgent:     responseAgent,
 		Reader:            strings.NewReader("12345678abcdefgh876543210"),
 		BlockSize:         8,
@@ -145,7 +145,7 @@ func TestTimeoutControllerIntegration(t *testing.T) {
 func TestCleanFinish(t *testing.T) {
 	responseAgent := response_agent.MakeMockResponseAgent()
 
-	config := ReadSessionConfig{
+	config := &ReadSessionConfig{
 		ResponseAgent:     responseAgent,
 		Reader:            strings.NewReader("Hello!"),
 		BlockSize:         512,
