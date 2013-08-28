@@ -10,6 +10,7 @@ import (
 
 type ReadSessionFactory func(filename string, clientAddr net.Addr) *ReadSession
 
+// Handles incoming messages from a single client and responds via the ResponseAgent inside a ReadSessionConfig.
 type ReadSession struct {
 	Config   *ReadSessionConfig
 	Ack      chan *safe_packets.SafeAck
@@ -27,6 +28,7 @@ func NewReadSession(config *ReadSessionConfig) *ReadSession {
 	}
 }
 
+// Synchronously send the first block of data and then watch for further inputs on a goroutine.
 func (s *ReadSession) Begin() {
 	if s.Config == nil {
 		panic("nil config")

@@ -7,6 +7,8 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
+// SafetyFilter converts potentially unsafe messages from a RequestAgent into guaranteed-safe messages.
+// Start it by calling Filter.
 type SafetyFilter struct {
 	IncomingRead chan *IncomingSafeReadRequest
 	IncomingAck  chan *IncomingSafeAck
@@ -23,6 +25,8 @@ func MakeSafetyFilter(requestAgent *request_agent.RequestAgent) *SafetyFilter {
 	return filter
 }
 
+// Convert incoming requests from the associated requestAgent into safe requests that
+// are output on the IncomingXXX channels.
 func (f *SafetyFilter) Filter() {
 	for {
 		select {

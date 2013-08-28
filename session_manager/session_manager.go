@@ -8,6 +8,8 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 )
 
+// Accepts incoming messages from a safety filter and creates read sessions or
+// forward the requests to the appropriate read session.
 type SessionManager struct {
 	Ack          chan *safety_filter.IncomingSafeAck
 	ReadRequest  chan *safety_filter.IncomingSafeReadRequest
@@ -27,6 +29,7 @@ func NewSessionManager(readSessionFactory read_session.ReadSessionFactory) *Sess
 	}
 }
 
+// Block forever and handle requests from the associated SafetyFilter.
 func (m *SessionManager) Watch() {
 	for {
 		select {

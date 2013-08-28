@@ -11,6 +11,7 @@ type ResponseAgent struct {
 	clientAddr net.Addr
 }
 
+// Takes safe packets and serializes them and sends them out on the associated connection.
 type ResponderAgent interface {
 	SendAck(ack *safe_packets.SafeAck)
 	SendErrorPacket(e *safe_packets.SafeError)

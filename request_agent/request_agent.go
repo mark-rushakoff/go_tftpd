@@ -9,6 +9,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/packets"
 )
 
+// RequestAgent watches a PacketConn and emits potentially unsafe messages on its several exposed channels.
 type RequestAgent struct {
 	Ack                 chan *IncomingAck
 	Error               chan *IncomingError
@@ -56,6 +57,7 @@ func NewRequestAgent(conn net.PacketConn) *RequestAgent {
 	}
 }
 
+// Read a single message and emit it on the appropriate channel.
 func (a *RequestAgent) Read() {
 	const maxPacketSize = 516
 	b := make([]byte, maxPacketSize)
