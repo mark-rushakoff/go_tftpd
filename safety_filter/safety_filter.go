@@ -10,31 +10,33 @@ import (
 type SafetyFilter struct {
 	IncomingRead chan *IncomingSafeReadRequest
 	IncomingAck  chan *IncomingSafeAck
+	requestAgent *request_agent.RequestAgent
 }
 
 func MakeSafetyFilter(requestAgent *request_agent.RequestAgent) *SafetyFilter {
 	filter := &SafetyFilter{
 		IncomingAck:  make(chan *IncomingSafeAck),
 		IncomingRead: make(chan *IncomingSafeReadRequest),
+		requestAgent: requestAgent,
 	}
 
-	go func() {
-		for {
-			select {
-			case incomingAck := <-requestAgent.Ack:
-				safeAck := &IncomingSafeAck{
-					Addr: incomingAck.Addr,
-					Ack:  safe_packets.NewSafeAck(incomingAck.Ack.BlockNumber),
-				}
-				filter.IncomingAck <- safeAck
-			case incomingRead := <-requestAgent.ReadRequest:
-				safeReadRequest := makeSafeReadRequest(incomingRead)
-				filter.IncomingRead <- safeReadRequest
-			}
-		}
-	}()
-
 	return filter
+}
+
+func (f *SafetyFilter) Filter() {
+	for {
+		select {
+		case incomingAck := <-f.requestAgent.Ack:
+			safeAck := &IncomingSafeAck{
+				Addr: incomingAck.Addr,
+				Ack:  safe_packets.NewSafeAck(incomingAck.Ack.BlockNumber),
+			}
+			f.IncomingAck <- safeAck
+		case incomingRead := <-f.requestAgent.ReadRequest:
+			safeReadRequest := makeSafeReadRequest(incomingRead)
+			f.IncomingRead <- safeReadRequest
+		}
+	}
 }
 
 type IncomingSafeAck struct {

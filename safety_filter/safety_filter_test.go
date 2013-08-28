@@ -13,6 +13,7 @@ import (
 func TestConvertsAcksToSafeAcks(t *testing.T) {
 	requestAgent := request_agent.NewRequestAgent(nil)
 	safetyFilter := MakeSafetyFilter(requestAgent)
+	go safetyFilter.Filter()
 
 	expectedBlockNumber := uint16(500)
 
@@ -52,6 +53,7 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 
 	requestAgent := request_agent.NewRequestAgent(nil)
 	safetyFilter := MakeSafetyFilter(requestAgent)
+	go safetyFilter.Filter()
 
 	fakeAddr := test_helpers.MakeMockAddr("fake_net", "a")
 
