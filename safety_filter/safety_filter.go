@@ -55,6 +55,6 @@ func makeSafeReadRequest(incomingReadRequest *request_agent.IncomingReadRequest)
 
 	return &IncomingSafeReadRequest{
 		Read: safeReadRequest,
-		Addr: nil,
+		Addr: incomingReadRequest.Addr,
 	}
 }
