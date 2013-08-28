@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/server_config"
@@ -20,6 +22,16 @@ func main() {
 	}
 
 	log.Printf("Listening on %v\n", udpConn.LocalAddr())
+
+	// handle ctrl-c
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		for sig := range c {
+			log.Printf("Received %v, exiting", sig)
+			os.Exit(0)
+		}
+	}()
 
 	serverConfig := server_config.ServerConfig{
 		BlockSize:  512,
