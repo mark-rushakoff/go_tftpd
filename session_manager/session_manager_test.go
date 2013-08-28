@@ -1,6 +1,7 @@
 package session_manager
 
 import (
+	"net"
 	"runtime"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ import (
 
 func TestIncomingReadCreatesSession(t *testing.T) {
 	factoryCalls := make(chan bool, 1)
-	readSessionFactory := func(filename string) *read_session.ReadSession {
+	readSessionFactory := func(filename string, _ net.Addr) *read_session.ReadSession {
 		factoryCalls <- true
 		return &read_session.ReadSession{
 			Config: &read_session.ReadSessionConfig{
@@ -69,7 +70,7 @@ func TestIncomingAckIsRoutedToCorrectSession(t *testing.T) {
 		Ack: make(chan *safe_packets.SafeAck),
 	}
 	totalCalls := 0
-	readSessionFactory := func(filename string) *read_session.ReadSession {
+	readSessionFactory := func(filename string, _ net.Addr) *read_session.ReadSession {
 		totalCalls++
 		if totalCalls == 1 {
 			return readSessionA

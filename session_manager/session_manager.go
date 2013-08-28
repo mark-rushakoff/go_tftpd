@@ -41,7 +41,7 @@ func (m *SessionManager) Watch() {
 func (m *SessionManager) makeReadSessionFromIncomingRequest(incomingReadRequest *safety_filter.IncomingSafeReadRequest) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	session := m.readSessionFactory(incomingReadRequest.Read.Filename)
+	session := m.readSessionFactory(incomingReadRequest.Read.Filename, incomingReadRequest.Addr)
 	if session.Config == nil {
 		panic("made session with a nil config")
 	}

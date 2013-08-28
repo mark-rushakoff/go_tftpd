@@ -3,11 +3,12 @@ package read_session
 import (
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type ReadSessionFactory func(string) *ReadSession
+type ReadSessionFactory func(filename string, clientAddr net.Addr) *ReadSession
 
 type ReadSession struct {
 	Config   *ReadSessionConfig
