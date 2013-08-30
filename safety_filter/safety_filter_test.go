@@ -10,69 +10,83 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
+var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a fake addr")
+
 func TestConvertsAcksToSafeAcks(t *testing.T) {
-	requestAgent := request_agent.NewRequestAgent(nil)
-	safetyFilter := MakeSafetyFilter(requestAgent)
-	go safetyFilter.Filter()
+	incomingAcks := make(chan *IncomingSafeAck, 1)
+	handler := &PluggableHandler{
+		AckHandler: func(ack *IncomingSafeAck) {
+			incomingAcks <- ack
+		},
+	}
 
 	expectedBlockNumber := uint16(500)
 
-	fakeAddr := test_helpers.MakeMockAddr("fake_net", "a")
-	go func() {
-		outgoingAck := &packets.Ack{
-			BlockNumber: expectedBlockNumber,
-		}
+	ackPacket := &packets.Ack{
+		BlockNumber: expectedBlockNumber,
+	}
 
-		outgoing := &request_agent.IncomingAck{
-			Ack:  outgoingAck,
-			Addr: fakeAddr,
-		}
+	ack := &request_agent.IncomingAck{
+		Ack:  ackPacket,
+		Addr: fakeAddr,
+	}
 
-		requestAgent.Ack <- outgoing
-	}()
+	MakeSafetyFilter(handler).HandleAck(ack)
 
 	select {
-	case incomingAck := <-safetyFilter.IncomingAck:
+	case incomingAck := <-incomingAcks:
+		if incomingAck == nil {
+			t.Fatalf("Did not receive Ack")
+		}
+
+		if incomingAck.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingAck.Addr)
+		}
+
 		actualBlockNumber := incomingAck.Ack.BlockNumber
 		if actualBlockNumber != expectedBlockNumber {
 			t.Errorf("Expected ack with block number %v, but received %v", actualBlockNumber, expectedBlockNumber)
 		}
 
-		if incomingAck.Addr != fakeAddr {
-			t.Errorf("Addr mismatch in and out of the safety filter")
-		}
-	case <-time.After(20 * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Fatalf("Did not receive ack in time")
 	}
 }
 
 func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
+	incomingReadRequests := make(chan *IncomingSafeReadRequest, 1)
+	handler := &PluggableHandler{
+		ReadRequestHandler: func(read *IncomingSafeReadRequest) {
+			incomingReadRequests <- read
+		},
+	}
+
 	expectedFilename := "foobar"
 	modeString := "netascii"
 	expectedMode := safe_packets.NetAscii
 
-	requestAgent := request_agent.NewRequestAgent(nil)
-	safetyFilter := MakeSafetyFilter(requestAgent)
-	go safetyFilter.Filter()
+	fakeIncomingReadPacket := &packets.ReadRequest{
+		Filename: expectedFilename,
+		Mode:     modeString,
+	}
 
-	fakeAddr := test_helpers.MakeMockAddr("fake_net", "a")
+	fakeIncomingReadRequest := &request_agent.IncomingReadRequest{
+		Read: fakeIncomingReadPacket,
+		Addr: fakeAddr,
+	}
 
-	go func() {
-		fakeIncomingRead := &packets.ReadRequest{
-			Filename: expectedFilename,
-			Mode:     modeString,
-		}
-
-		fakeIncoming := &request_agent.IncomingReadRequest{
-			Read: fakeIncomingRead,
-			Addr: fakeAddr,
-		}
-
-		requestAgent.ReadRequest <- fakeIncoming
-	}()
+	MakeSafetyFilter(handler).HandleReadRequest(fakeIncomingReadRequest)
 
 	select {
-	case incomingRead := <-safetyFilter.IncomingRead:
+	case incomingRead := <-incomingReadRequests:
+		if incomingRead == nil {
+			t.Fatalf("Did not receive Read")
+		}
+
+		if incomingRead.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingRead.Addr)
+		}
+
 		actualFilename := incomingRead.Read.Filename
 		if actualFilename != expectedFilename {
 			t.Errorf("Expected Filename '%v', but received '%v'", actualFilename, expectedFilename)
@@ -83,11 +97,7 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 			t.Errorf("Expected Mode '%v', but received '%v'", actualMode, expectedMode)
 		}
 
-		if incomingRead.Addr != fakeAddr {
-			t.Errorf("Addr mismatch in and out of the safety filter")
-		}
-
-	case <-time.After(20 * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Fatalf("Did not receive read request in time")
 	}
 }
