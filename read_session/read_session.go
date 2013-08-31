@@ -1,7 +1,6 @@
 package read_session
 
 import (
-	"fmt"
 	"io"
 	"net"
 
@@ -12,9 +11,9 @@ type ReadSessionFactory func(filename string, clientAddr net.Addr) *ReadSession
 
 // Handles incoming messages from a single client and responds via the ResponseAgent inside a ReadSessionConfig.
 type ReadSession struct {
-	Config   *ReadSessionConfig
-	Ack      chan *safe_packets.SafeAck
-	Finished chan bool
+	config   *ReadSessionConfig
+	ack      chan *safe_packets.SafeAck
+	finished chan bool
 
 	currentBlockNumber uint16
 	currentDataPacket  *safe_packets.SafeData
@@ -22,74 +21,74 @@ type ReadSession struct {
 
 func NewReadSession(config *ReadSessionConfig) *ReadSession {
 	return &ReadSession{
-		Config:   config,
-		Ack:      make(chan *safe_packets.SafeAck),
-		Finished: make(chan bool),
+		config:   config,
+		ack:      make(chan *safe_packets.SafeAck),
+		finished: make(chan bool),
 	}
 }
 
-// Synchronously send the first block of data and then watch for further inputs on a goroutine.
+func (s *ReadSession) Ack() chan<- *safe_packets.SafeAck {
+	return s.ack
+}
+
+func (s *ReadSession) Finished() <-chan bool {
+	return s.finished
+}
+
 func (s *ReadSession) Begin() {
-	if s.Config == nil {
-		panic("nil config")
-	}
-
-	if s.Config.ResponseAgent == nil {
-		panic("nil response agent")
-	}
-
-	s.Config.ResponseAgent.SendAck(safe_packets.NewSafeAck(0))
-
 	s.nextBlock()
 	s.sendData()
+	s.config.TimeoutController.Countdown()
 
-	go s.watch()
+	var isFinished bool
+	for ; !isFinished; isFinished = s.watch() {
+	}
 }
 
-func (s *ReadSession) watch() {
-	if s.Config.TimeoutController == nil {
-		panic("TimeoutController is nil")
-	}
-
-	for {
-		select {
-		case ack := <-s.Ack:
-			if ack.BlockNumber == s.currentBlockNumber {
-				isFinished := s.nextBlock()
-				if isFinished {
-					s.Finished <- true
-				} else {
-					s.sendData()
-				}
-			} else if ack.BlockNumber == s.currentBlockNumber-1 {
-				s.sendData()
-			} else {
-				panic(fmt.Sprintf("Could not handle received ack: %v", ack))
-			}
-		case isExpired := <-s.Config.TimeoutController.Timeout():
-			if isExpired {
-				go func() {
-					s.Finished <- true
-				}()
-				return
+func (s *ReadSession) watch() (isFinished bool) {
+	select {
+	case ack := <-s.ack:
+		if ack.BlockNumber == s.currentBlockNumber {
+			outOfBlocks := s.nextBlock()
+			if outOfBlocks {
+				s.finished <- true
+				return true
 			} else {
 				s.sendData()
+				s.config.TimeoutController.Restart()
+				s.config.TimeoutController.Countdown()
 			}
+		} else if ack.BlockNumber == s.currentBlockNumber-1 {
+			s.sendData()
+			s.config.TimeoutController.Restart()
+			s.config.TimeoutController.Countdown()
+		} else {
+			panic("A very old ack is currently undefined behavior")
+		}
+	case isExpired := <-s.config.TimeoutController.Timeout():
+		if isExpired {
+			s.finished <- true
+			return true
+		} else {
+			s.sendData()
+			s.config.TimeoutController.Countdown()
 		}
 	}
+
+	return false
 }
 
 func (s *ReadSession) sendData() {
-	s.Config.ResponseAgent.SendData(s.currentDataPacket)
+	s.config.ResponseAgent.SendData(s.currentDataPacket)
 }
 
 func (s *ReadSession) nextBlock() (isFinished bool) {
-	dataBytes := make([]byte, s.Config.BlockSize)
-	if s.Config.Reader == nil {
+	dataBytes := make([]byte, s.config.BlockSize)
+	if s.config.Reader == nil {
 		panic("Config.Reader is nil")
 	}
 
-	bytesRead, err := s.Config.Reader.Read(dataBytes)
+	bytesRead, err := s.config.Reader.Read(dataBytes)
 	if bytesRead == 0 {
 		if err == io.EOF {
 			return true
