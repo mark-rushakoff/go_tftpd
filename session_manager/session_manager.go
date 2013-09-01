@@ -31,16 +31,21 @@ func NewSessionManager(readSessionFactory read_session.ReadSessionFactory) *Sess
 
 func (m *SessionManager) MakeReadSessionFromIncomingRequest(incomingReadRequest *safety_filter.IncomingSafeReadRequest) {
 	session := m.readSessionFactory(incomingReadRequest.Read.Filename, incomingReadRequest.Addr)
+	key := sessionKey(incomingReadRequest.Addr)
 	m.lock.Lock()
-	m.readSessions[sessionKey(incomingReadRequest.Addr)] = session
+	m.readSessions[key] = session
 	m.lock.Unlock()
 	session.Begin()
 }
 
 func (m *SessionManager) SendAckToReadSession(incomingAck *safety_filter.IncomingSafeAck) {
-	m.lock.Lock()
-	session := m.readSessions[sessionKey(incomingAck.Addr)]
-	m.lock.Unlock()
+	key := sessionKey(incomingAck.Addr)
+	m.lock.RLock()
+	session, found := m.readSessions[key]
+	if !found {
+		panic("Could not find a read session for address: " + key)
+	}
+	m.lock.RUnlock()
 	session.Ack() <- incomingAck.Ack
 }
 

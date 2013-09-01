@@ -71,10 +71,8 @@ func TestIncomingAckIsRoutedToCorrectSession(t *testing.T) {
 	readSessionFactory := func(filename string, _ net.Addr) *read_session.ReadSession {
 		totalCalls++
 		if totalCalls == 1 {
-			println("Returning readSessionA")
 			return readSessionA
 		} else if totalCalls == 2 {
-			println("Returning readSessionB")
 			return readSessionB
 		} else {
 			panic("test Read session factory called too many times")

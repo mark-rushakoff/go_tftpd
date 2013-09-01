@@ -36,8 +36,8 @@ func main() {
 	serverConfig := server_config.ServerConfig{
 		BlockSize:  512,
 		PacketConn: udpConn,
-		Timeout:    5 * time.Second,
-		TryLimit:   5,
+		Timeout:    1 * time.Second,
+		TryLimit:   2,
 	}
 
 	serverConfig.Serve()

@@ -7,10 +7,8 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/read_session"
-	"github.com/mark-rushakoff/go_tftpd/request_agent"
-	"github.com/mark-rushakoff/go_tftpd/request_router"
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safe_packet_provider"
 	"github.com/mark-rushakoff/go_tftpd/session_manager"
 	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
@@ -30,17 +28,28 @@ type ServerConfig struct {
 }
 
 func (c *ServerConfig) Serve() {
-	requestAgent := request_agent.NewRequestAgent(c.PacketConn)
+	provider := safe_packet_provider.NewSafePacketProvider(c.PacketConn)
+
 	go func() {
 		for {
-			requestAgent.Read()
+			provider.Read()
 		}
 	}()
 
-	safetyFilter := safety_filter.MakeSafetyFilter(requestAgent)
-	go safetyFilter.Filter()
+	sessionManager := session_manager.NewSessionManager(c.makeReadSessionFactory())
 
-	readSessionFactory := func(filename string, clientAddr net.Addr) *read_session.ReadSession {
+	for {
+		select {
+		case r := <-provider.IncomingSafeReadRequest():
+			go sessionManager.MakeReadSessionFromIncomingRequest(r)
+		case ack := <-provider.IncomingSafeAck():
+			sessionManager.SendAckToReadSession(ack)
+		}
+	}
+}
+
+func (c *ServerConfig) makeReadSessionFactory() read_session.ReadSessionFactory {
+	return func(filename string, clientAddr net.Addr) *read_session.ReadSession {
 		workingDir, err := os.Getwd()
 		if err != nil {
 			panic(err.Error())
@@ -60,10 +69,4 @@ func (c *ServerConfig) Serve() {
 		}
 		return read_session.NewReadSession(config)
 	}
-
-	sessionManager := session_manager.NewSessionManager(readSessionFactory)
-	go sessionManager.Watch()
-
-	requestRouter := request_router.NewRequestRouter(safetyFilter, sessionManager)
-	requestRouter.Route()
 }

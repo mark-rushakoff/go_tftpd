@@ -72,17 +72,17 @@ func (a *RequestAgent) Read() {
 
 	switch opcode {
 	case packets.AckOpcode:
-		go a.handleAck(b, addr)
+		a.handleAck(b, addr)
 	case packets.DataOpcode:
-		go a.handleData(b, addr)
+		a.handleData(b, addr)
 	case packets.ReadOpcode:
-		go a.handleRead(b, addr)
+		a.handleRead(b, addr)
 	case packets.WriteOpcode:
-		go a.handleWrite(b, addr)
+		a.handleWrite(b, addr)
 	case packets.ErrorOpcode:
-		go a.handleError(b, addr)
+		a.handleError(b, addr)
 	default:
-		go a.handleInvalidPacket(b, InvalidOpcode, addr)
+		a.handleInvalidPacket(b, InvalidOpcode, addr)
 	}
 }
 
