@@ -11,7 +11,15 @@ type Config struct {
 	BlockSize uint16
 }
 
-type ReadSession struct {
+type ReadSession interface {
+	Begin()
+	HandleAck(ack *safe_packets.SafeAck)
+	Resend()
+
+	IsFinished() bool
+}
+
+type readSession struct {
 	config  *Config
 	handler OutgoingHandler
 
@@ -21,23 +29,23 @@ type ReadSession struct {
 	isFinished bool
 }
 
-func NewReadSession(config *Config, handler OutgoingHandler) *ReadSession {
-	return &ReadSession{
+func NewReadSession(config *Config, handler OutgoingHandler) *readSession {
+	return &readSession{
 		config:  config,
 		handler: handler,
 	}
 }
 
-func (s *ReadSession) IsFinished() bool {
+func (s *readSession) IsFinished() bool {
 	return s.isFinished
 }
 
-func (s *ReadSession) Begin() {
+func (s *readSession) Begin() {
 	s.nextBlock()
 	s.sendData()
 }
 
-func (s *ReadSession) HandleAck(ack *safe_packets.SafeAck) {
+func (s *readSession) HandleAck(ack *safe_packets.SafeAck) {
 	if ack.BlockNumber == s.currentBlockNumber {
 		s.nextBlock()
 		s.sendData()
@@ -48,11 +56,11 @@ func (s *ReadSession) HandleAck(ack *safe_packets.SafeAck) {
 	}
 }
 
-func (s *ReadSession) sendData() {
+func (s *readSession) sendData() {
 	s.handler.SendData(s.currentDataPacket)
 }
 
-func (s *ReadSession) nextBlock() {
+func (s *readSession) nextBlock() {
 	dataBytes := make([]byte, s.config.BlockSize)
 	if s.config.Reader == nil {
 		panic("Config.Reader is nil")
