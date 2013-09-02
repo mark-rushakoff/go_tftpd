@@ -2,87 +2,57 @@ package read_session
 
 import (
 	"io"
-	"net"
 
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type ReadSessionFactory func(filename string, clientAddr net.Addr) *ReadSession
+type Config struct {
+	Reader    io.Reader
+	BlockSize uint16
+}
 
-// Handles incoming messages from a single client and responds via the ResponseAgent inside a ReadSessionConfig.
 type ReadSession struct {
-	config   *ReadSessionConfig
-	ack      chan *safe_packets.SafeAck
-	finished chan bool
+	config  *Config
+	handler OutgoingHandler
 
 	currentBlockNumber uint16
 	currentDataPacket  *safe_packets.SafeData
+
+	isFinished bool
 }
 
-func NewReadSession(config *ReadSessionConfig) *ReadSession {
+func NewReadSession(config *Config, handler OutgoingHandler) *ReadSession {
 	return &ReadSession{
-		config:   config,
-		ack:      make(chan *safe_packets.SafeAck),
-		finished: make(chan bool),
+		config:  config,
+		handler: handler,
 	}
 }
 
-func (s *ReadSession) Ack() chan<- *safe_packets.SafeAck {
-	return s.ack
-}
-
-func (s *ReadSession) Finished() <-chan bool {
-	return s.finished
+func (s *ReadSession) IsFinished() bool {
+	return s.isFinished
 }
 
 func (s *ReadSession) Begin() {
 	s.nextBlock()
 	s.sendData()
-	s.config.TimeoutController.Countdown()
-
-	var isFinished bool
-	for ; !isFinished; isFinished = s.watch() {
-	}
 }
 
-func (s *ReadSession) watch() (isFinished bool) {
-	select {
-	case ack := <-s.ack:
-		if ack.BlockNumber == s.currentBlockNumber {
-			outOfBlocks := s.nextBlock()
-			if outOfBlocks {
-				s.finished <- true
-				return true
-			} else {
-				s.sendData()
-				s.config.TimeoutController.Restart()
-				s.config.TimeoutController.Countdown()
-			}
-		} else if ack.BlockNumber == s.currentBlockNumber-1 {
-			s.sendData()
-			s.config.TimeoutController.Restart()
-			s.config.TimeoutController.Countdown()
-		} else {
-			panic("A very old ack is currently undefined behavior")
-		}
-	case isExpired := <-s.config.TimeoutController.Timeout():
-		if isExpired {
-			s.finished <- true
-			return true
-		} else {
-			s.sendData()
-			s.config.TimeoutController.Countdown()
-		}
+func (s *ReadSession) HandleAck(ack *safe_packets.SafeAck) {
+	if ack.BlockNumber == s.currentBlockNumber {
+		s.nextBlock()
+		s.sendData()
+	} else if ack.BlockNumber == s.currentBlockNumber-1 {
+		s.sendData()
+	} else {
+		panic("A very old ack is currently undefined behavior")
 	}
-
-	return false
 }
 
 func (s *ReadSession) sendData() {
-	s.config.ResponseAgent.SendData(s.currentDataPacket)
+	s.handler.SendData(s.currentDataPacket)
 }
 
-func (s *ReadSession) nextBlock() (isFinished bool) {
+func (s *ReadSession) nextBlock() {
 	dataBytes := make([]byte, s.config.BlockSize)
 	if s.config.Reader == nil {
 		panic("Config.Reader is nil")
@@ -90,8 +60,9 @@ func (s *ReadSession) nextBlock() (isFinished bool) {
 
 	bytesRead, err := s.config.Reader.Read(dataBytes)
 	if bytesRead == 0 {
+		s.isFinished = true
 		if err == io.EOF {
-			return true
+			return
 		} else {
 			panic("Not sure what to do with a non-eof io error and 0 bytes read")
 		}
@@ -101,5 +72,4 @@ func (s *ReadSession) nextBlock() (isFinished bool) {
 
 	s.currentBlockNumber++
 	s.currentDataPacket = safe_packets.NewSafeData(s.currentBlockNumber, dataBytes)
-	return false
 }
