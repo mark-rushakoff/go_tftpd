@@ -3,91 +3,183 @@ package timeout_controller
 import (
 	"testing"
 	"time"
+
+	"github.com/mark-rushakoff/go_tftpd/read_session"
+	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-func TestCountdownTriggersTimeout(t *testing.T) {
-	controller := NewTimeoutController(10*time.Millisecond, 2)
-	err := controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
+func TestBeginThenTimeoutResendsData(t *testing.T) {
+	begin := make(chan bool, 1)
+	resend := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+			begin <- true
+		},
+		ResendHandler: func() {
+			resend <- true
+		},
 	}
-	select {
-	case isExpired := <-controller.Timeout():
-		if isExpired {
-			t.Fatalf("Should not have expired yet")
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("Did not receive signal in time")
-	}
-
-	err = controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
-	}
-	select {
-	case isExpired := <-controller.Timeout():
-		if !isExpired {
-			t.Fatalf("Should have expired now")
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("Did not receive signal in time")
-	}
-
-	err = controller.Countdown()
-	if err == nil {
-		t.Fatalf("Expected an error when calling countdown when out of tries, but got nil")
-	}
-
-	controller.Restart()
+	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller.Begin()
 
 	select {
-	case <-controller.Timeout():
-		t.Fatalf("Countdown should not begin immediately after a Restart")
-	case <-time.After(15 * time.Millisecond):
-		// normal timeout exceeded successfully
+	case <-begin:
+	// ok
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Controller did not call session.Begin")
 	}
 
-	err = controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
-	}
 	select {
-	case isExpired := <-controller.Timeout():
-		if isExpired {
-			t.Fatalf("Should not have expired yet")
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("Did not receive signal in time")
+	case <-time.After(2 * time.Millisecond):
+		// ok
+	case <-resend:
+		t.Fatalf("Controller called resend too early")
 	}
 
-	err = controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
-	}
 	select {
-	case isExpired := <-controller.Timeout():
-		if !isExpired {
-			t.Fatalf("Should have expired now")
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("Did not receive signal in time")
+	case <-resend:
+		// ok
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Controller did not call resend in time")
 	}
 }
 
-func TestStopCancelsCountdown(t *testing.T) {
-	controller := NewTimeoutController(10*time.Millisecond, 2)
-	err := controller.Countdown()
-	if err != nil {
-		t.Fatalf("Expected no errors, received %v", err)
+func TestNewDoesNotStartTimer(t *testing.T) {
+	resend := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		ResendHandler: func() {
+			resend <- true
+		},
 	}
-
-	time.Sleep(1 * time.Millisecond)
-	controller.Stop()
+	NewTimeoutController(3*time.Millisecond, 3, session)
 
 	select {
-	case <-controller.Timeout():
-		t.Fatalf("Should not have received timeout")
-	case <-time.After(20 * time.Millisecond):
-		// success
+	case <-time.After(4 * time.Millisecond):
+		// ok
+	case <-resend:
+		t.Fatalf("Controller re-sent before begin called")
+	}
+}
+
+func TestAckResetsTimer(t *testing.T) {
+	resend := make(chan bool, 1)
+	ack := make(chan *safe_packets.SafeAck, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+		},
+		ResendHandler: func() {
+			resend <- true
+		},
+		HandleAckHandler: func(a *safe_packets.SafeAck) {
+			ack <- a
+		},
+	}
+	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller.Begin()
+
+	time.Sleep(2 * time.Millisecond)
+	controller.HandleAck(safe_packets.NewSafeAck(8))
+
+	select {
+	case a := <-ack:
+		if a.BlockNumber != 8 {
+			t.Errorf("Controller sent ack with wrong block number")
+		}
+	default:
+		t.Fatalf("Controller did not forward ack to session")
+	}
+
+	select {
+	case <-time.After(2 * time.Millisecond):
+		// ok
+	case <-resend:
+		t.Fatalf("Controller re-sent data too early after timer was supposed to be reset")
+	}
+
+	select {
+	case <-resend:
+		// ok
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Controller did not re-send data on time")
+	}
+}
+
+func TestStopResendingAfterTryLimit(t *testing.T) {
+	resend := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+		},
+		ResendHandler: func() {
+			resend <- true
+		},
+	}
+	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller.Begin() // begin contains first try
+
+	select {
+	case <-resend:
+		// ok, second try
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller did not re-send in time")
+	}
+
+	select {
+	case <-resend:
+		// ok, third try
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller did not re-send in time")
+	}
+
+	select {
+	case <-time.After(4 * time.Millisecond):
+		// ok, correct timeout
+	case <-resend:
+		t.Fatalf("Controller re-sent when tries should have been exhausted")
+	}
+}
+
+func TestHandleAckResetsTryLimit(t *testing.T) {
+	resend := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+		},
+		ResendHandler: func() {
+			resend <- true
+		},
+		HandleAckHandler: func(_ *safe_packets.SafeAck) {
+		},
+	}
+	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller.Begin() // begin contains first try
+
+	select {
+	case <-resend:
+		// ok, second try
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller did not re-send in time")
+	}
+
+	select {
+	case <-resend:
+		// ok, third try
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller did not re-send in time")
+	}
+
+	controller.HandleAck(safe_packets.NewSafeAck(5))
+	for i := 0; i < 3; i++ {
+		select {
+		case <-resend:
+			// ok, try 1-2-3
+		case <-time.After(4 * time.Millisecond):
+			t.Fatalf("Controller did not re-send in time")
+		}
+	}
+
+	select {
+	case <-time.After(4 * time.Millisecond):
+		// ok, correct timeout
+	case <-resend:
+		t.Fatalf("Controller re-sent when tries should have been exhausted")
 	}
 }
