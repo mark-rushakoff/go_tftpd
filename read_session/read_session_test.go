@@ -20,7 +20,7 @@ func TestBegin(t *testing.T) {
 		Reader:    strings.NewReader("foobar"),
 		BlockSize: 2,
 	}
-	session := NewReadSession(config, handler)
+	session := NewReadSession(config, handler, func() {})
 	session.Begin()
 
 	select {
@@ -47,7 +47,7 @@ func TestCurrentAckAdvancesData(t *testing.T) {
 		Reader:    strings.NewReader("foobar"),
 		BlockSize: 2,
 	}
-	session := NewReadSession(config, handler)
+	session := NewReadSession(config, handler, func() {})
 	session.Begin()
 
 	select {
@@ -87,7 +87,7 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 		Reader:    strings.NewReader("foobar"),
 		BlockSize: 2,
 	}
-	session := NewReadSession(config, handler)
+	session := NewReadSession(config, handler, func() {})
 
 	session.Begin()
 	select {
@@ -128,6 +128,7 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 
 func TestFinishesInSinglePacket(t *testing.T) {
 	dataChan := make(chan *safe_packets.SafeData, 1)
+	finished := make(chan bool, 1)
 	handler := &PluggableHandler{
 		SendDataHandler: func(d *safe_packets.SafeData) {
 			dataChan <- d
@@ -137,7 +138,9 @@ func TestFinishesInSinglePacket(t *testing.T) {
 		Reader:    strings.NewReader("foobar"),
 		BlockSize: 24,
 	}
-	session := NewReadSession(config, handler)
+	session := NewReadSession(config, handler, func() {
+		finished <- true
+	})
 	session.Begin()
 
 	select {
@@ -150,13 +153,80 @@ func TestFinishesInSinglePacket(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	if session.IsFinished() {
+	select {
+	case <-finished:
 		t.Errorf("Expected session not to be finished before last ack arrived")
+	default:
+		// ok
 	}
 
 	session.HandleAck(safe_packets.NewSafeAck(1))
 
-	if !session.IsFinished() {
+	select {
+	case <-finished:
+		// ok
+	default:
+		t.Errorf("Expected session to be finished after last ack arrived")
+	}
+}
+
+func TestFinishesInMultiplePackets(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	finished := make(chan bool, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 5,
+	}
+	session := NewReadSession(config, handler, func() {
+		finished <- true
+	})
+	session.Begin()
+
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+
+		if !bytes.Equal(d.Data.Data, []byte("fooba")) {
+			t.Errorf("Expected fooba, saw %v", d.Data.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	select {
+	case <-finished:
+		t.Errorf("Expected session not to be finished before last ack arrived")
+	default:
+		// ok
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+
+		if !bytes.Equal(d.Data.Data, []byte("r")) {
+			t.Errorf("Expected r, saw %v", d.Data.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(2))
+
+	select {
+	case <-finished:
+		// ok
+	default:
 		t.Errorf("Expected session to be finished after last ack arrived")
 	}
 }

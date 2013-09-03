@@ -26,18 +26,16 @@ type readSession struct {
 	currentBlockNumber uint16
 	currentDataPacket  *safe_packets.SafeData
 
-	isFinished bool
+	dataExhausted bool
+	onFinish      func()
 }
 
-func NewReadSession(config *Config, handler OutgoingHandler) *readSession {
+func NewReadSession(config *Config, handler OutgoingHandler, onFinish func()) *readSession {
 	return &readSession{
-		config:  config,
-		handler: handler,
+		config:   config,
+		handler:  handler,
+		onFinish: onFinish,
 	}
-}
-
-func (s *readSession) IsFinished() bool {
-	return s.isFinished
 }
 
 func (s *readSession) Begin() {
@@ -46,6 +44,11 @@ func (s *readSession) Begin() {
 }
 
 func (s *readSession) HandleAck(ack *safe_packets.SafeAck) {
+	if s.dataExhausted {
+		s.onFinish()
+		return
+	}
+
 	if ack.BlockNumber == s.currentBlockNumber {
 		s.nextBlock()
 		s.sendData()
@@ -68,12 +71,16 @@ func (s *readSession) nextBlock() {
 
 	bytesRead, err := s.config.Reader.Read(dataBytes)
 	if bytesRead == 0 {
-		s.isFinished = true
+		s.dataExhausted = true
 		if err == io.EOF {
 			return
 		} else {
 			panic("Not sure what to do with a non-eof io error and 0 bytes read")
 		}
+	}
+
+	if bytesRead < len(dataBytes) {
+		s.dataExhausted = true
 	}
 
 	dataBytes = dataBytes[:bytesRead]
