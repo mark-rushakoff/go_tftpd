@@ -18,6 +18,8 @@ type TimeoutController struct {
 	session read_session.ReadSession
 
 	onExpire func()
+
+	done chan bool
 }
 
 func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) *TimeoutController {
@@ -31,6 +33,7 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 		timer:          timer,
 		session:        session,
 		onExpire:       onExpire,
+		done:           make(chan bool),
 	}
 
 	go func() {
@@ -38,8 +41,8 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 			select {
 			case <-c.timer.C:
 				c.resendDueToTimeout()
-				/* case <-done: */
-				/* return */
+			case <-c.done:
+				return
 			}
 		}
 	}()
@@ -53,7 +56,7 @@ func (c *TimeoutController) Begin() {
 	if c.triesRemaining > 0 {
 		c.timer.Reset(c.duration)
 	} else {
-		c.onExpire()
+		c.expire()
 	}
 }
 
@@ -65,11 +68,16 @@ func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
 
 func (c *TimeoutController) resendDueToTimeout() {
 	if c.triesRemaining == 0 {
-		c.onExpire()
+		c.expire()
 		return
 	}
 	c.session.Resend()
 
 	c.triesRemaining--
 	c.timer.Reset(c.duration)
+}
+
+func (c *TimeoutController) expire() {
+	c.onExpire()
+	c.done <- true
 }
