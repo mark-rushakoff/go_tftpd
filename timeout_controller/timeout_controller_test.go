@@ -19,7 +19,7 @@ func TestBeginThenTimeoutResendsData(t *testing.T) {
 			resend <- true
 		},
 	}
-	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
 	controller.Begin()
 
 	select {
@@ -51,7 +51,7 @@ func TestNewDoesNotStartTimer(t *testing.T) {
 			resend <- true
 		},
 	}
-	NewTimeoutController(3*time.Millisecond, 3, session)
+	NewTimeoutController(3*time.Millisecond, 3, session, func() {})
 
 	select {
 	case <-time.After(4 * time.Millisecond):
@@ -74,7 +74,7 @@ func TestAckResetsTimer(t *testing.T) {
 			ack <- a
 		},
 	}
-	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
 	controller.Begin()
 
 	time.Sleep(2 * time.Millisecond)
@@ -113,7 +113,7 @@ func TestStopResendingAfterTryLimit(t *testing.T) {
 			resend <- true
 		},
 	}
-	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
 	controller.Begin() // begin contains first try
 
 	select {
@@ -149,7 +149,7 @@ func TestHandleAckResetsTryLimit(t *testing.T) {
 		HandleAckHandler: func(_ *safe_packets.SafeAck) {
 		},
 	}
-	controller := NewTimeoutController(3*time.Millisecond, 3, session)
+	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
 	controller.Begin() // begin contains first try
 
 	select {
@@ -181,5 +181,67 @@ func TestHandleAckResetsTryLimit(t *testing.T) {
 		// ok, correct timeout
 	case <-resend:
 		t.Fatalf("Controller re-sent when tries should have been exhausted")
+	}
+}
+
+func TestTimingOutWithOneTryCausesFinish(t *testing.T) {
+	expired := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+		},
+	}
+	controller := NewTimeoutController(1*time.Millisecond, 1, session, func() {
+		expired <- true
+	})
+	controller.Begin()
+
+	select {
+	case <-expired:
+
+	case <-time.After(2 * time.Millisecond):
+		t.Fatalf("Controller did not call expired callback")
+	}
+}
+
+func TestTimingOutWithMultipleTriesCausesFinish(t *testing.T) {
+	begin := make(chan bool, 1)
+	resend := make(chan bool, 1)
+	expired := make(chan bool, 1)
+	session := &read_session.MockReadSession{
+		BeginHandler: func() {
+			begin <- true
+		},
+		ResendHandler: func() {
+			resend <- true
+		},
+	}
+	controller := NewTimeoutController(3*time.Millisecond, 2, session, func() {
+		expired <- true
+	})
+	controller.Begin()
+
+	select {
+	case <-begin:
+	// ok
+	default:
+		t.Fatalf("Did not synchronize with begin")
+	}
+
+	select {
+	case <-resend:
+	// ok
+	case <-expired:
+		t.Fatalf("Controller prematurely expired")
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller timed out too quickly")
+	}
+
+	select {
+	case <-expired:
+	// ok
+	case <-resend:
+		t.Fatalf("Controller resent when it should have expired")
+	case <-time.After(4 * time.Millisecond):
+		t.Fatalf("Controller did not call expired callback")
 	}
 }

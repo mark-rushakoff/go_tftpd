@@ -16,9 +16,11 @@ type TimeoutController struct {
 	timer *time.Timer
 
 	session read_session.ReadSession
+
+	onExpire func()
 }
 
-func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession) *TimeoutController {
+func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) *TimeoutController {
 	timer := time.NewTimer(time.Second)
 	timer.Stop() // no false timeouts if there's a long time between initializing and calling Begin
 
@@ -28,6 +30,7 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 		triesRemaining: tryLimit,
 		timer:          timer,
 		session:        session,
+		onExpire:       onExpire,
 	}
 
 	go func() {
@@ -47,7 +50,11 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 func (c *TimeoutController) Begin() {
 	c.session.Begin()
 	c.triesRemaining--
-	c.timer.Reset(c.duration)
+	if c.triesRemaining > 0 {
+		c.timer.Reset(c.duration)
+	} else {
+		c.onExpire()
+	}
 }
 
 func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
@@ -57,11 +64,12 @@ func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
 }
 
 func (c *TimeoutController) resendDueToTimeout() {
+	if c.triesRemaining == 0 {
+		c.onExpire()
+		return
+	}
 	c.session.Resend()
 
 	c.triesRemaining--
-	if c.triesRemaining <= 0 {
-	} else {
-		c.timer.Reset(c.duration)
-	}
+	c.timer.Reset(c.duration)
 }
