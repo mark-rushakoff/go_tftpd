@@ -126,6 +126,68 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 	}
 }
 
+func TestResendRepeatsData(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {})
+
+	session.Begin()
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.Resend()
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected ob, saw %v", d.Data.Data)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.Resend()
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected ob, saw %v", d.Data.Data)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+}
+
 func TestFinishesInSinglePacket(t *testing.T) {
 	dataChan := make(chan *safe_packets.SafeData, 1)
 	finished := make(chan bool, 1)

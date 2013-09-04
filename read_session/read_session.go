@@ -15,8 +15,6 @@ type ReadSession interface {
 	Begin()
 	HandleAck(ack *safe_packets.SafeAck)
 	Resend()
-
-	IsFinished() bool
 }
 
 type readSession struct {
@@ -57,6 +55,10 @@ func (s *readSession) HandleAck(ack *safe_packets.SafeAck) {
 	} else {
 		panic("A very old ack is currently undefined behavior")
 	}
+}
+
+func (s *readSession) Resend() {
+	s.sendData()
 }
 
 func (s *readSession) sendData() {
