@@ -1,4 +1,4 @@
-package session_manager
+package read_session_collection
 
 import (
 	"net"
@@ -23,7 +23,6 @@ func NewReadSessionCollection() *ReadSessionCollection {
 func (s *ReadSessionCollection) Add(session read_session.ReadSession, addr net.Addr) {
 	key := key(addr)
 	s.add(session, key)
-	session.Begin()
 }
 
 func (s *ReadSessionCollection) Fetch(addr net.Addr) (session read_session.ReadSession, ok bool) {

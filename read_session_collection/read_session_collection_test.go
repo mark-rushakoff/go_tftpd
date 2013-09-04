@@ -1,4 +1,4 @@
-package session_manager
+package read_session_collection
 
 import (
 	"testing"
@@ -6,27 +6,6 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/read_session"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
-
-func TestAddSessionCallsBegin(t *testing.T) {
-	begin := make(chan bool, 1)
-	session := &read_session.MockReadSession{
-		BeginHandler: func() {
-			begin <- true
-		},
-	}
-	addr := test_helpers.MakeMockAddr("fake_net", "a")
-
-	manager := NewReadSessionCollection()
-
-	manager.Add(session, addr)
-
-	select {
-	case <-begin:
-	// ok
-	default:
-		t.Errorf("Add did not call session.Begin")
-	}
-}
 
 func TestAddSessionMakesFetchable(t *testing.T) {
 	session := &read_session.MockReadSession{
