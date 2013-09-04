@@ -1,79 +1,87 @@
 package timeout_controller
 
 import (
-	"errors"
 	"time"
+
+	"github.com/mark-rushakoff/go_tftpd/read_session"
+	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type timeoutController struct {
+type TimeoutController struct {
 	duration time.Duration
 	tryLimit uint
 
 	triesRemaining uint
 
-	timeout chan bool
-
 	timer *time.Timer
+
+	session read_session.ReadSession
+
+	onExpire func()
+
+	done chan bool
 }
 
-func NewTimeoutController(duration time.Duration, tryLimit uint) TimeoutController {
-	c := &timeoutController{
+func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) *TimeoutController {
+	timer := time.NewTimer(time.Second)
+	timer.Stop() // no false timeouts if there's a long time between initializing and calling Begin
+
+	c := &TimeoutController{
 		duration:       duration,
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,
-		timeout:        make(chan bool, tryLimit),
-		timer:          time.NewTimer(duration),
+		timer:          timer,
+		session:        session,
+		onExpire:       onExpire,
+		done:           make(chan bool),
 	}
 
-	c.timer.Stop()
+	go func() {
+		for {
+			select {
+			case <-c.timer.C:
+				c.resendDueToTimeout()
+			case <-c.done:
+				return
+			}
+		}
+	}()
 
 	return c
 }
 
-type TimeoutController interface {
-	// Starts a single session of the timeout.
-	// Returns an error if no retries remain.
-	Countdown() error
-
-	// Begin an entirely new timeout cycle.
-	// This resets both the current countdown timer and the number of retries consumed.
-	Restart()
-
-	// Disables any remaining countdown timer.
-	// May only be followed by a call to Restart.
-	Stop()
-
-	// Triggered when a countdown elapses.
-	// Sends true when the countdown has expired (i.e. the maximum number of retries has been consumed).
-	Timeout() chan bool
-}
-
-func (c *timeoutController) Countdown() error {
-	if c.triesRemaining == 0 {
-		return errors.New("No tries remaining")
-	}
-
-	go func() {
+func (c *TimeoutController) Begin() {
+	c.session.Begin()
+	c.triesRemaining--
+	if c.triesRemaining > 0 {
 		c.timer.Reset(c.duration)
-		select {
-		case <-c.timer.C:
-			c.triesRemaining--
-			c.timeout <- (c.triesRemaining == 0)
-		}
-	}()
-
-	return nil
+	} else {
+		c.expire()
+	}
 }
 
-func (c *timeoutController) Timeout() chan bool {
-	return c.timeout
-}
-
-func (c *timeoutController) Stop() {
-	c.timer.Stop()
-}
-
-func (c *timeoutController) Restart() {
-	c.Stop()
+func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
+	c.session.HandleAck(ack)
 	c.triesRemaining = c.tryLimit
+	c.timer.Reset(c.duration)
+}
+
+func (c *TimeoutController) Resend() {
+	panic("Should never call TimeoutController.Resend")
+}
+
+func (c *TimeoutController) resendDueToTimeout() {
+	if c.triesRemaining == 0 {
+		c.expire()
+		return
+	}
+	c.session.Resend()
+
+	c.triesRemaining--
+	c.timer.Reset(c.duration)
+}
+
+func (c *TimeoutController) expire() {
+	c.onExpire()
+	c.done <- true
 }

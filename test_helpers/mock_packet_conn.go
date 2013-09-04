@@ -1,7 +1,10 @@
 package test_helpers
 
 import (
+	"bytes"
+	"encoding/binary"
 	"net"
+	"testing"
 	"time"
 )
 
@@ -55,4 +58,34 @@ func (c *MockPacketConn) LastPacketOut() (packet []byte, addr net.Addr, ok bool)
 	addr = c.lastPacketOut.addr
 	ok = c.sentAnyPackets
 	return
+}
+
+func NewMockPacketConnWithBytes(t *testing.T, addr net.Addr, data []interface{}) *MockPacketConn {
+	wasCalledOnce := false
+	return &MockPacketConn{
+		ReadFromFunc: func(b []byte) (int, net.Addr, error) {
+			if wasCalledOnce {
+				t.Fatalf("Called fake reader more than once")
+			}
+			wasCalledOnce = true
+
+			buf := new(bytes.Buffer)
+			for _, v := range data {
+				str, isString := v.(string)
+				if isString {
+					_, err := buf.WriteString(str)
+					if err != nil {
+						t.Errorf("Failed to write string to buffer")
+					}
+				} else {
+					err := binary.Write(buf, binary.BigEndian, v)
+					if err != nil {
+						t.Errorf("Failed to write data to buffer")
+					}
+				}
+			}
+			n := copy(b, buf.Bytes())
+			return n, addr, nil
+		},
+	}
 }

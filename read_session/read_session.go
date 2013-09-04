@@ -1,106 +1,92 @@
 package read_session
 
 import (
-	"fmt"
 	"io"
-	"net"
 
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type ReadSessionFactory func(filename string, clientAddr net.Addr) *ReadSession
+type Config struct {
+	Reader    io.Reader
+	BlockSize uint16
+}
 
-// Handles incoming messages from a single client and responds via the ResponseAgent inside a ReadSessionConfig.
-type ReadSession struct {
-	Config   *ReadSessionConfig
-	Ack      chan *safe_packets.SafeAck
-	Finished chan bool
+type ReadSession interface {
+	Begin()
+	HandleAck(ack *safe_packets.SafeAck)
+	Resend()
+}
+
+type readSession struct {
+	config  *Config
+	handler OutgoingHandler
 
 	currentBlockNumber uint16
 	currentDataPacket  *safe_packets.SafeData
+
+	dataExhausted bool
+	onFinish      func()
 }
 
-func NewReadSession(config *ReadSessionConfig) *ReadSession {
-	return &ReadSession{
-		Config:   config,
-		Ack:      make(chan *safe_packets.SafeAck),
-		Finished: make(chan bool),
+func NewReadSession(config *Config, handler OutgoingHandler, onFinish func()) *readSession {
+	return &readSession{
+		config:   config,
+		handler:  handler,
+		onFinish: onFinish,
 	}
 }
 
-// Synchronously send the first block of data and then watch for further inputs on a goroutine.
-func (s *ReadSession) Begin() {
-	if s.Config == nil {
-		panic("nil config")
-	}
-
-	if s.Config.ResponseAgent == nil {
-		panic("nil response agent")
-	}
-
-	s.Config.ResponseAgent.SendAck(safe_packets.NewSafeAck(0))
-
+func (s *readSession) Begin() {
 	s.nextBlock()
 	s.sendData()
-
-	go s.watch()
 }
 
-func (s *ReadSession) watch() {
-	if s.Config.TimeoutController == nil {
-		panic("TimeoutController is nil")
+func (s *readSession) HandleAck(ack *safe_packets.SafeAck) {
+	if s.dataExhausted {
+		s.onFinish()
+		return
 	}
 
-	for {
-		select {
-		case ack := <-s.Ack:
-			if ack.BlockNumber == s.currentBlockNumber {
-				isFinished := s.nextBlock()
-				if isFinished {
-					s.Finished <- true
-				} else {
-					s.sendData()
-				}
-			} else if ack.BlockNumber == s.currentBlockNumber-1 {
-				s.sendData()
-			} else {
-				panic(fmt.Sprintf("Could not handle received ack: %v", ack))
-			}
-		case isExpired := <-s.Config.TimeoutController.Timeout():
-			if isExpired {
-				go func() {
-					s.Finished <- true
-				}()
-				return
-			} else {
-				s.sendData()
-			}
-		}
+	if ack.BlockNumber == s.currentBlockNumber {
+		s.nextBlock()
+		s.sendData()
+	} else if ack.BlockNumber == s.currentBlockNumber-1 {
+		s.sendData()
+	} else {
+		panic("A very old ack is currently undefined behavior")
 	}
 }
 
-func (s *ReadSession) sendData() {
-	s.Config.ResponseAgent.SendData(s.currentDataPacket)
+func (s *readSession) Resend() {
+	s.sendData()
 }
 
-func (s *ReadSession) nextBlock() (isFinished bool) {
-	dataBytes := make([]byte, s.Config.BlockSize)
-	if s.Config.Reader == nil {
+func (s *readSession) sendData() {
+	s.handler.SendData(s.currentDataPacket)
+}
+
+func (s *readSession) nextBlock() {
+	dataBytes := make([]byte, s.config.BlockSize)
+	if s.config.Reader == nil {
 		panic("Config.Reader is nil")
 	}
 
-	bytesRead, err := s.Config.Reader.Read(dataBytes)
+	bytesRead, err := s.config.Reader.Read(dataBytes)
 	if bytesRead == 0 {
+		s.dataExhausted = true
 		if err == io.EOF {
-			return true
+			return
 		} else {
 			panic("Not sure what to do with a non-eof io error and 0 bytes read")
 		}
+	}
+
+	if bytesRead < len(dataBytes) {
+		s.dataExhausted = true
 	}
 
 	dataBytes = dataBytes[:bytesRead]
 
 	s.currentBlockNumber++
 	s.currentDataPacket = safe_packets.NewSafeData(s.currentBlockNumber, dataBytes)
-	return false
 }

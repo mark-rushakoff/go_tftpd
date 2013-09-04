@@ -2,207 +2,293 @@ package read_session
 
 import (
 	"bytes"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/response_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
-	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
 func TestBegin(t *testing.T) {
-	responseAgent := response_agent.MakeMockResponseAgent()
-
-	config := &ReadSessionConfig{
-		ResponseAgent:     responseAgent,
-		Reader:            strings.NewReader("Hello!"),
-		BlockSize:         512,
-		TimeoutController: timeout_controller.MakeMockTimeoutController(),
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
 	}
-	session := NewReadSession(config)
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {})
 	session.Begin()
 
-	assertTotalMessagesSent(t, responseAgent, 2)
-
-	sentAck := responseAgent.MostRecentAck()
-	actualBlockNumber := sentAck.BlockNumber
-	expectedBlockNumber := uint16(0)
-	if actualBlockNumber != expectedBlockNumber {
-		t.Errorf("Expected ReadSession to ack with block number %v, received %v", expectedBlockNumber, actualBlockNumber)
-		bytes.Equal(nil, nil)
-	}
-
-	sentData := responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 1, []byte("Hello!"))
-
-	session.assertNotFinished(t)
-}
-
-func TestMultipleDataPackets(t *testing.T) {
-	responseAgent := response_agent.MakeMockResponseAgent()
-
-	config := &ReadSessionConfig{
-		ResponseAgent:     responseAgent,
-		Reader:            strings.NewReader("12345678abcdef"),
-		BlockSize:         8,
-		TimeoutController: timeout_controller.MakeMockTimeoutController(),
-	}
-	session := NewReadSession(config)
-	session.Begin()
-
-	assertTotalMessagesSent(t, responseAgent, 2)
-
-	sentData := responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 1, []byte("12345678"))
-
-	responseAgent.Reset()
-	session.Ack <- safe_packets.NewSafeAck(1)
-
-	sentData = responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 2, []byte("abcdef"))
-
-	session.assertNotFinished(t)
-}
-
-func TestOldAck(t *testing.T) {
-	responseAgent := response_agent.MakeMockResponseAgent()
-
-	config := &ReadSessionConfig{
-		ResponseAgent:     responseAgent,
-		Reader:            strings.NewReader("12345678abcdefgh876543210"),
-		BlockSize:         8,
-		TimeoutController: timeout_controller.MakeMockTimeoutController(),
-	}
-	session := NewReadSession(config)
-	session.Begin()
-
-	assertTotalMessagesSent(t, responseAgent, 2)
-
-	sentData := responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 1, []byte("12345678"))
-
-	responseAgent.Reset()
-	session.Ack <- safe_packets.NewSafeAck(1)
-
-	sentData = responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
-
-	assertTotalMessagesSent(t, responseAgent, 1)
-
-	responseAgent.Reset()
-	session.Ack <- safe_packets.NewSafeAck(1)
-
-	// yield to the session's channel... probably a better way to do this? Or maybe it's just a test artifact?
-	time.Sleep(1 * time.Millisecond)
-
-	assertTotalMessagesSent(t, responseAgent, 1)
-
-	sentData = responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 2, []byte("abcdefgh"))
-
-	session.assertNotFinished(t)
-}
-
-func TestTimeoutControllerIntegration(t *testing.T) {
-	responseAgent := response_agent.MakeMockResponseAgent()
-	timeoutController := timeout_controller.MakeMockTimeoutController()
-
-	config := &ReadSessionConfig{
-		ResponseAgent:     responseAgent,
-		Reader:            strings.NewReader("12345678abcdefgh876543210"),
-		BlockSize:         8,
-		TimeoutController: timeoutController,
-	}
-	session := NewReadSession(config)
-	session.Begin()
-
-	assertTotalMessagesSent(t, responseAgent, 2)
-
-	sentData := responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 1, []byte("12345678"))
-
-	responseAgent.Reset()
-	timeoutController.Timeout() <- false // not expired, so re-send
-
-	time.Sleep(1 * time.Millisecond)
-
-	sentData = responseAgent.MostRecentData()
-	assertDataMessage(t, sentData, 1, []byte("12345678"))
-	session.assertNotFinished(t)
-
-	responseAgent.Reset()
-	timeoutController.Timeout() <- true // expired, so stop sending
-
-	time.Sleep(1 * time.Millisecond)
-
-	assertTotalMessagesSent(t, responseAgent, 0)
-
-	session.assertFinished(t)
-}
-
-func TestCleanFinish(t *testing.T) {
-	responseAgent := response_agent.MakeMockResponseAgent()
-
-	config := &ReadSessionConfig{
-		ResponseAgent:     responseAgent,
-		Reader:            strings.NewReader("Hello!"),
-		BlockSize:         512,
-		TimeoutController: timeout_controller.MakeMockTimeoutController(),
-	}
-	session := NewReadSession(config)
-	session.Begin()
-
-	assertTotalMessagesSent(t, responseAgent, 2)
-
-	session.Ack <- safe_packets.NewSafeAck(1)
-
-	session.assertFinished(t)
-}
-
-func assertDataMessage(t *testing.T, data *safe_packets.SafeData, expectedBlockNumber uint16, expectedData []byte) {
-	if data == nil {
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("Data not sent at %v:%v", file, line)
-	}
-
-	actualBlockNumber := data.BlockNumber
-	if actualBlockNumber != expectedBlockNumber {
-		_, file, line, _ := runtime.Caller(1)
-		t.Errorf("Expected ReadSession to send data with block number %v, received %v at %v:%v", expectedBlockNumber, actualBlockNumber, file, line)
-	}
-
-	if !bytes.Equal(data.Data.Data, expectedData) {
-		_, file, line, _ := runtime.Caller(1)
-		t.Errorf("Expected ReadSession to send data %v, received %v at %v:%v", expectedData, data.Data.Data, file, line)
-	}
-}
-
-func assertTotalMessagesSent(t *testing.T, responseAgent *response_agent.MockResponseAgent, total int) {
-	actualTotal := responseAgent.TotalMessagesSent()
-	if actualTotal != total {
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("Expected %v message(s) sent but %v message(s) were sent at %v:%v", total, actualTotal, file, line)
-	}
-}
-
-func (s *ReadSession) assertFinished(t *testing.T) {
 	select {
-	case <-s.Finished:
-		// ok
-	case <-time.After(1 * time.Millisecond):
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("Session was supposed to be finished but was not at %v:%v", file, line)
+	case d := <-dataChan:
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("fo")) {
+			t.Errorf("Expected data packet of 'fo', saw %v", d.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
 	}
 }
 
-func (s *ReadSession) assertNotFinished(t *testing.T) {
+func TestCurrentAckAdvancesData(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {})
+	session.Begin()
+
 	select {
-	case <-s.Finished:
-		_, file, line, _ := runtime.Caller(1)
-		t.Fatalf("Session was supposed to NOT be finished but was at %v:%v", file, line)
-	case <-time.After(1 * time.Millisecond):
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected data packet of 'ob', saw %v", d.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+}
+
+func TestPreviousAckRepeatsData(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {})
+
+	session.Begin()
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected data packet of 'ob', saw %v", d.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+}
+
+func TestResendRepeatsData(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {})
+
+	session.Begin()
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.Resend()
+	select {
+	case d := <-dataChan:
+		// same case asserted in another test
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected ob, saw %v", d.Data.Data)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.Resend()
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+		if !bytes.Equal(d.Data.Data, []byte("ob")) {
+			t.Errorf("Expected ob, saw %v", d.Data.Data)
+		}
+	default:
+		t.Fatalf("Did not see data packet in time")
+	}
+}
+
+func TestFinishesInSinglePacket(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	finished := make(chan bool, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 24,
+	}
+	session := NewReadSession(config, handler, func() {
+		finished <- true
+	})
+	session.Begin()
+
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 1 {
+			// same case asserted in another test
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	select {
+	case <-finished:
+		t.Errorf("Expected session not to be finished before last ack arrived")
+	default:
 		// ok
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+
+	select {
+	case <-finished:
+		// ok
+	default:
+		t.Errorf("Expected session to be finished after last ack arrived")
+	}
+}
+
+func TestFinishesInMultiplePackets(t *testing.T) {
+	dataChan := make(chan *safe_packets.SafeData, 1)
+	finished := make(chan bool, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(d *safe_packets.SafeData) {
+			dataChan <- d
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("foobar"),
+		BlockSize: 5,
+	}
+	session := NewReadSession(config, handler, func() {
+		finished <- true
+	})
+	session.Begin()
+
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 1 {
+			t.Errorf("Expected block number 1, got %v", d.BlockNumber)
+		}
+
+		if !bytes.Equal(d.Data.Data, []byte("fooba")) {
+			t.Errorf("Expected fooba, saw %v", d.Data.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	select {
+	case <-finished:
+		t.Errorf("Expected session not to be finished before last ack arrived")
+	default:
+		// ok
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	select {
+	case d := <-dataChan:
+		if d.BlockNumber != 2 {
+			t.Errorf("Expected block number 2, got %v", d.BlockNumber)
+		}
+
+		if !bytes.Equal(d.Data.Data, []byte("r")) {
+			t.Errorf("Expected r, saw %v", d.Data.Data)
+		}
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not see data packet in time")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(2))
+
+	select {
+	case <-finished:
+		// ok
+	default:
+		t.Errorf("Expected session to be finished after last ack arrived")
 	}
 }

@@ -11,13 +11,8 @@ import (
 
 // RequestAgent watches a PacketConn and emits potentially unsafe messages on its several exposed channels.
 type RequestAgent struct {
-	Ack                 chan *IncomingAck
-	Error               chan *IncomingError
-	Data                chan *IncomingData
-	ReadRequest         chan *IncomingReadRequest
-	WriteRequest        chan *IncomingWriteRequest
-	InvalidTransmission chan *InvalidTransmission
-	conn                net.PacketConn
+	Handler RequestHandler
+	conn    net.PacketConn
 }
 
 type IncomingAck struct {
@@ -45,15 +40,11 @@ type IncomingWriteRequest struct {
 	Addr  net.Addr
 }
 
-func NewRequestAgent(conn net.PacketConn) *RequestAgent {
+func NewRequestAgent(conn net.PacketConn, handler RequestHandler) *RequestAgent {
 	return &RequestAgent{
-		Ack:                 make(chan *IncomingAck),
-		Error:               make(chan *IncomingError),
-		Data:                make(chan *IncomingData),
-		ReadRequest:         make(chan *IncomingReadRequest),
-		WriteRequest:        make(chan *IncomingWriteRequest),
-		InvalidTransmission: make(chan *InvalidTransmission),
-		conn:                conn,
+		conn: conn,
+
+		Handler: handler,
 	}
 }
 
@@ -81,17 +72,17 @@ func (a *RequestAgent) Read() {
 
 	switch opcode {
 	case packets.AckOpcode:
-		go a.handleAck(b, addr)
+		a.handleAck(b, addr)
 	case packets.DataOpcode:
-		go a.handleData(b, addr)
+		a.handleData(b, addr)
 	case packets.ReadOpcode:
-		go a.handleRead(b, addr)
+		a.handleRead(b, addr)
 	case packets.WriteOpcode:
-		go a.handleWrite(b, addr)
+		a.handleWrite(b, addr)
 	case packets.ErrorOpcode:
-		go a.handleError(b, addr)
+		a.handleError(b, addr)
 	default:
-		go a.handleInvalidPacket(b, InvalidOpcode, addr)
+		a.handleInvalidPacket(b, InvalidOpcode, addr)
 	}
 }
 
@@ -112,7 +103,7 @@ func (a *RequestAgent) handleAck(b []byte, addr net.Addr) {
 	if err != nil {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
-	a.Ack <- &IncomingAck{&packets.Ack{blockNum}, addr}
+	a.Handler.HandleAck(&IncomingAck{&packets.Ack{blockNum}, addr})
 }
 
 func (a *RequestAgent) handleData(b []byte, addr net.Addr) {
@@ -129,7 +120,7 @@ func (a *RequestAgent) handleData(b []byte, addr net.Addr) {
 	}
 	data := b[4:]
 	dataPacket := &packets.Data{blockNum, data}
-	a.Data <- &IncomingData{dataPacket, addr}
+	a.Handler.HandleData(&IncomingData{dataPacket, addr})
 }
 
 func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
@@ -159,14 +150,14 @@ func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
 
 	message := string(remaining[:nulIndex])
 	errorPacket := &packets.Error{packets.ErrorCode(code), message}
-	a.Error <- &IncomingError{errorPacket, addr}
+	a.Handler.HandleError(&IncomingError{errorPacket, addr})
 }
 
 func (a *RequestAgent) handleRead(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
 		read := &packets.ReadRequest{content.filename, content.readWriteMode}
-		a.ReadRequest <- &IncomingReadRequest{read, addr}
+		a.Handler.HandleReadRequest(&IncomingReadRequest{read, addr})
 	} else {
 		a.handleInvalidPacket(b, invalidReason, addr)
 	}
@@ -176,7 +167,7 @@ func (a *RequestAgent) handleWrite(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
 		write := &packets.WriteRequest{content.filename, content.readWriteMode}
-		a.WriteRequest <- &IncomingWriteRequest{write, addr}
+		a.Handler.HandleWriteRequest(&IncomingWriteRequest{write, addr})
 	} else {
 		a.handleInvalidPacket(b, invalidReason, addr)
 	}
@@ -216,5 +207,5 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 }
 
 func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason, addr net.Addr) {
-	a.InvalidTransmission <- &InvalidTransmission{b, reason, addr}
+	a.Handler.HandleInvalidTransmission(&InvalidTransmission{b, reason, addr})
 }

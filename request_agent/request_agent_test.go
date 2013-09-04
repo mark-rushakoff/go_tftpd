@@ -11,23 +11,38 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
-const timeoutMs = 100
+var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a fake addr")
 
 func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	const blockNum uint16 = 1234
 
-	agent := agentWithIncomingPacket(t, []interface{}{
+	incomingAcks := make(chan *IncomingAck, 1)
+	handler := &PluggableHandler{
+		AckHandler: func(ack *IncomingAck) {
+			incomingAcks <- ack
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
 		uint16(packets.AckOpcode),
 		uint16(blockNum),
-	})
+	}).Read()
 
 	select {
-	case incomingAck := <-agent.Ack:
+	case incomingAck := <-incomingAcks:
+		if incomingAck == nil {
+			t.Fatalf("Did not receive Ack")
+		}
+
+		if incomingAck.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingAck.Addr)
+		}
+
 		ack := incomingAck.Ack
 		if ack.BlockNumber != blockNum {
 			t.Errorf("Received block number %v, expected %v", ack.BlockNumber, blockNum)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive Ack in time")
 	}
 }
@@ -35,15 +50,29 @@ func TestAcknowledgementPacketCausesAck(t *testing.T) {
 func TestErrorPacketCausesError(t *testing.T) {
 	const blockNum uint16 = 3456
 
-	agent := agentWithIncomingPacket(t, []interface{}{
+	incomingErrors := make(chan *IncomingError, 1)
+	handler := &PluggableHandler{
+		ErrorHandler: func(e *IncomingError) {
+			incomingErrors <- e
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
 		uint16(packets.ErrorOpcode),
 		uint16(packets.FileNotFound),
 		string("lol"),
 		byte(0),
-	})
+	}).Read()
 
 	select {
-	case incomingError := <-agent.Error:
+	case incomingError := <-incomingErrors:
+		if incomingError == nil {
+			t.Fatalf("Did not receive Error")
+		}
+
+		if incomingError.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingError.Addr)
+		}
+
 		errorPacket := incomingError.Error
 		expectedCode := packets.FileNotFound
 		if errorPacket.Code != expectedCode {
@@ -54,7 +83,7 @@ func TestErrorPacketCausesError(t *testing.T) {
 		if errorPacket.Message != expectedMessage {
 			t.Errorf("Received message %v, expected %v", errorPacket.Message, expectedMessage)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive Error in time")
 	}
 }
@@ -62,15 +91,29 @@ func TestErrorPacketCausesError(t *testing.T) {
 func TestDataPacketCausesData(t *testing.T) {
 	const blockNum uint16 = 2345
 
-	agent := agentWithIncomingPacket(t, []interface{}{
+	incomingData := make(chan *IncomingData, 1)
+	handler := &PluggableHandler{
+		DataHandler: func(data *IncomingData) {
+			incomingData <- data
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
 		uint16(packets.DataOpcode),
 		uint16(blockNum),
 		[]byte{0, 1, 2, 3, 4, 5, 255},
-	})
+	}).Read()
 
 	select {
-	case incomingData := <-agent.Data:
-		data := incomingData.Data
+	case incomingDatum := <-incomingData:
+		if incomingDatum == nil {
+			t.Fatalf("Did not receive Data")
+		}
+
+		if incomingDatum.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingDatum.Addr)
+		}
+
+		data := incomingDatum.Data
 		if data.BlockNumber != blockNum {
 			t.Errorf("Received block number %v, expected %v", data.BlockNumber, blockNum)
 		}
@@ -79,7 +122,7 @@ func TestDataPacketCausesData(t *testing.T) {
 		if !bytes.Equal(data.Data, expectedData) {
 			t.Errorf("Received data %v, expected %v", data.Data, expectedData)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive Data in time")
 	}
 }
@@ -87,16 +130,30 @@ func TestDataPacketCausesData(t *testing.T) {
 func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	const blockNum uint16 = 9876
 
-	agent := agentWithIncomingPacket(t, []interface{}{
+	incomingReadRequests := make(chan *IncomingReadRequest, 1)
+	handler := &PluggableHandler{
+		ReadRequestHandler: func(read *IncomingReadRequest) {
+			incomingReadRequests <- read
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
 		uint16(packets.ReadOpcode),
 		string("/foo/bar"),
 		byte(0),
 		string("netascii"),
 		byte(0),
-	})
+	}).Read()
 
 	select {
-	case incomingRead := <-agent.ReadRequest:
+	case incomingRead := <-incomingReadRequests:
+		if incomingRead == nil {
+			t.Fatalf("Did not receive Read")
+		}
+
+		if incomingRead.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingRead.Addr)
+		}
+
 		readPacket := incomingRead.Read
 		expectedFilename := "/foo/bar"
 		if readPacket.Filename != expectedFilename {
@@ -107,7 +164,7 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 		if readPacket.Mode != expectedMode {
 			t.Errorf("Received mode %v, expected %v", readPacket.Mode, expectedMode)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive Read in time")
 	}
 }
@@ -115,16 +172,29 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	const blockNum uint16 = 2468
 
-	agent := agentWithIncomingPacket(t, []interface{}{
+	incomingWriteRequests := make(chan *IncomingWriteRequest, 1)
+	handler := &PluggableHandler{
+		WriteRequestHandler: func(write *IncomingWriteRequest) {
+			incomingWriteRequests <- write
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
 		uint16(packets.WriteOpcode),
 		string("/foo/bar"),
 		byte(0),
 		string("netascii"),
 		byte(0),
-	})
+	}).Read()
 
 	select {
-	case incomingWrite := <-agent.WriteRequest:
+	case incomingWrite := <-incomingWriteRequests:
+		if incomingWrite == nil {
+			t.Fatalf("Did not receive Read")
+		}
+
+		if incomingWrite.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingWrite.Addr)
+		}
 		writePacket := incomingWrite.Write
 		expectedFilename := "/foo/bar"
 		if writePacket.Filename != expectedFilename {
@@ -135,7 +205,7 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 		if writePacket.Mode != expectedMode {
 			t.Errorf("Received mode %v, expected %v", writePacket.Mode, expectedMode)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive Read in time")
 	}
 }
@@ -169,10 +239,24 @@ func TestInvalidPacketCausesInvalidTransmission(t *testing.T) {
 
 func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacketTestCase) {
 	t.Logf(`Running test case "%v"`, testCase.description)
+	invalidTransmissions := make(chan *InvalidTransmission, 1)
+	handler := &PluggableHandler{
+		InvalidTransmissionHandler: func(invalid *InvalidTransmission) {
+			invalidTransmissions <- invalid
+		},
+	}
 	invalidPacket := testCase.packet
-	agent := agentWithIncomingPacket(t, []interface{}{invalidPacket})
+	agentWithIncomingPacket(t, handler, []interface{}{invalidPacket}).Read()
+
 	select {
-	case invalidTransmission := <-agent.InvalidTransmission:
+	case invalidTransmission := <-invalidTransmissions:
+		if invalidTransmission == nil {
+			t.Fatalf("Did not receive InvalidTransmission")
+		}
+
+		if invalidTransmission.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", invalidTransmission.Addr)
+		}
 		expectedTransmission := make([]byte, len(invalidPacket))
 		copy(expectedTransmission, invalidPacket)
 		if !bytes.Equal(invalidTransmission.Packet, expectedTransmission) {
@@ -183,18 +267,17 @@ func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacket
 		if actualReason != testCase.reason {
 			t.Errorf("Detected invalid transmission with reason code '%v', expected '%v'", actualReason, testCase.reason)
 		}
-	case <-time.After(timeoutMs * time.Millisecond):
+	case <-time.After(time.Millisecond):
 		t.Errorf("Did not receive invalid transmission in time")
 	}
 }
 
-func agentWithIncomingPacket(t *testing.T, data []interface{}) *RequestAgent {
+func agentWithIncomingPacket(t *testing.T, handler RequestHandler, data []interface{}) *RequestAgent {
 	conn := &test_helpers.MockPacketConn{
 		ReadFromFunc: buildReaderFunc(t, data),
 	}
 
-	agent := NewRequestAgent(conn)
-	go agent.Read()
+	agent := NewRequestAgent(conn, handler)
 
 	return agent
 }
@@ -203,8 +286,7 @@ func buildReaderFunc(t *testing.T, data []interface{}) func([]byte) (int, net.Ad
 	wasCalledOnce := false
 	return func(b []byte) (int, net.Addr, error) {
 		if wasCalledOnce {
-			// block forever
-			select {}
+			t.Fatalf("Called fake reader more than once")
 		}
 		wasCalledOnce = true
 
@@ -224,6 +306,6 @@ func buildReaderFunc(t *testing.T, data []interface{}) func([]byte) (int, net.Ad
 			}
 		}
 		n := copy(b, buf.Bytes())
-		return n, nil, nil
+		return n, fakeAddr, nil
 	}
 }
