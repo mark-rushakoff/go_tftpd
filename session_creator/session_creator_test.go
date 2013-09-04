@@ -48,7 +48,7 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 			t.Fatalf("Session sent wrong data packet: got %v, expected %v", data.Bytes(), expected)
 		}
 	default:
-		t.Fatalf("Session did not send data during Begin")
+		t.Fatalf("Session did not send data during BeginSession")
 	}
 
 	_, found := readSessions.Fetch(fakeAddr)

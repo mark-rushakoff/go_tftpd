@@ -8,7 +8,7 @@ import (
 )
 
 type TimeoutController interface {
-	Begin()
+	BeginSession()
 	HandleAck(*safe_packets.SafeAck)
 }
 
@@ -55,7 +55,7 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 	return c
 }
 
-func (c *timeoutController) Begin() {
+func (c *timeoutController) BeginSession() {
 	c.session.Begin()
 	c.triesRemaining--
 	if c.triesRemaining > 0 {

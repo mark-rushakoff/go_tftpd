@@ -53,5 +53,5 @@ func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
 	})
 
 	c.readSessions.Add(timeoutController, r.Addr)
-	go timeoutController.Begin()
+	go timeoutController.BeginSession()
 }

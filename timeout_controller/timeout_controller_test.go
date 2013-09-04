@@ -8,7 +8,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-func TestBeginThenTimeoutResendsData(t *testing.T) {
+func TestBeginSessionThenTimeoutResendsData(t *testing.T) {
 	begin := make(chan bool, 1)
 	resend := make(chan bool, 1)
 	session := &read_session.MockReadSession{
@@ -20,13 +20,13 @@ func TestBeginThenTimeoutResendsData(t *testing.T) {
 		},
 	}
 	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
-	controller.Begin()
+	controller.BeginSession()
 
 	select {
 	case <-begin:
 	// ok
 	case <-time.After(time.Millisecond):
-		t.Fatalf("Controller did not call session.Begin")
+		t.Fatalf("Controller did not call session.BeginSession")
 	}
 
 	select {
@@ -75,7 +75,7 @@ func TestAckResetsTimer(t *testing.T) {
 		},
 	}
 	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
-	controller.Begin()
+	controller.BeginSession()
 
 	time.Sleep(2 * time.Millisecond)
 	controller.HandleAck(safe_packets.NewSafeAck(8))
@@ -99,7 +99,7 @@ func TestAckResetsTimer(t *testing.T) {
 	select {
 	case <-resend:
 		// ok
-	case <-time.After(time.Millisecond):
+	case <-time.After(2 * time.Millisecond):
 		t.Fatalf("Controller did not re-send data on time")
 	}
 }
@@ -114,7 +114,7 @@ func TestStopResendingAfterTryLimit(t *testing.T) {
 		},
 	}
 	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
-	controller.Begin() // begin contains first try
+	controller.BeginSession() // begin contains first try
 
 	select {
 	case <-resend:
@@ -150,7 +150,7 @@ func TestHandleAckResetsTryLimit(t *testing.T) {
 		},
 	}
 	controller := NewTimeoutController(3*time.Millisecond, 3, session, func() {})
-	controller.Begin() // begin contains first try
+	controller.BeginSession() // begin contains first try
 
 	select {
 	case <-resend:
@@ -193,7 +193,7 @@ func TestTimingOutWithOneTryCausesFinish(t *testing.T) {
 	controller := NewTimeoutController(1*time.Millisecond, 1, session, func() {
 		expired <- true
 	})
-	controller.Begin()
+	controller.BeginSession()
 
 	select {
 	case <-expired:
@@ -218,7 +218,7 @@ func TestTimingOutWithMultipleTriesCausesFinish(t *testing.T) {
 	controller := NewTimeoutController(3*time.Millisecond, 2, session, func() {
 		expired <- true
 	})
-	controller.Begin()
+	controller.BeginSession()
 
 	select {
 	case <-begin:
