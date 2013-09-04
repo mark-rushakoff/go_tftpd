@@ -24,7 +24,13 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 	readSessions := read_session_collection.NewReadSessionCollection()
 	reader := make(chan []byte)
 	outgoing := make(chan *safe_packets.SafeData, 1)
-	sessionCreator := NewSessionCreator(readSessions, readerFactory(reader), outgoingFactory(outgoing))
+	sessionCreator := NewSessionCreator(
+		readSessions,
+		readerFactory(reader),
+		outgoingFactory(outgoing),
+		2*time.Millisecond,
+		2,
+	)
 
 	sessionCreator.Create(readRequest)
 
@@ -41,11 +47,28 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 		if !data.Equals(expected) {
 			t.Fatalf("Session sent wrong data packet: got %v, expected %v", data.Bytes(), expected)
 		}
+	default:
+		t.Fatalf("Session did not send data during Begin")
 	}
 
 	_, found := readSessions.Fetch(fakeAddr)
 	if !found {
 		t.Fatalf("SessionCreator did not expose the session")
+	}
+
+	select {
+	case <-outgoing:
+		// don't care
+	case <-time.After(3 * time.Millisecond):
+		t.Fatalf("Should have timed out and re-sent data")
+	}
+
+	// let timeout elapse once more
+	time.Sleep(3 * time.Millisecond)
+
+	_, found = readSessions.Fetch(fakeAddr)
+	if found {
+		t.Fatalf("Should have timed out and removed itself from collection")
 	}
 }
 

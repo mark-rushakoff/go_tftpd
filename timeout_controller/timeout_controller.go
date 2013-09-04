@@ -66,6 +66,10 @@ func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
 	c.timer.Reset(c.duration)
 }
 
+func (c *TimeoutController) Resend() {
+	panic("Should never call TimeoutController.Resend")
+}
+
 func (c *TimeoutController) resendDueToTimeout() {
 	if c.triesRemaining == 0 {
 		c.expire()

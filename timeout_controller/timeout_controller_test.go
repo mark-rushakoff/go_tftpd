@@ -39,7 +39,7 @@ func TestBeginThenTimeoutResendsData(t *testing.T) {
 	select {
 	case <-resend:
 		// ok
-	case <-time.After(time.Millisecond):
+	case <-time.After(2 * time.Millisecond):
 		t.Fatalf("Controller did not call resend in time")
 	}
 }

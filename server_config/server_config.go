@@ -39,14 +39,14 @@ func (c *ServerConfig) Serve() {
 	}()
 
 	sessions := read_session_collection.NewReadSessionCollection()
-	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr())
+	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.Timeout, c.TryLimit)
 	sessionRouter := session_router.NewSessionRouter(sessions)
 
 	for {
 		select {
 		case r := <-provider.IncomingSafeReadRequest():
 			sessionCreator.Create(r)
-			case ack := <-provider.IncomingSafeAck():
+		case ack := <-provider.IncomingSafeAck():
 			sessionRouter.RouteAck(ack)
 		}
 	}
