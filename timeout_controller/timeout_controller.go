@@ -7,7 +7,12 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
-type TimeoutController struct {
+type TimeoutController interface {
+	Begin()
+	HandleAck(*safe_packets.SafeAck)
+}
+
+type timeoutController struct {
 	duration time.Duration
 	tryLimit uint
 
@@ -22,11 +27,11 @@ type TimeoutController struct {
 	done chan bool
 }
 
-func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) *TimeoutController {
+func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) TimeoutController {
 	timer := time.NewTimer(time.Second)
 	timer.Stop() // no false timeouts if there's a long time between initializing and calling Begin
 
-	c := &TimeoutController{
+	c := &timeoutController{
 		duration:       duration,
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,
@@ -50,7 +55,7 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 	return c
 }
 
-func (c *TimeoutController) Begin() {
+func (c *timeoutController) Begin() {
 	c.session.Begin()
 	c.triesRemaining--
 	if c.triesRemaining > 0 {
@@ -60,17 +65,13 @@ func (c *TimeoutController) Begin() {
 	}
 }
 
-func (c *TimeoutController) HandleAck(ack *safe_packets.SafeAck) {
+func (c *timeoutController) HandleAck(ack *safe_packets.SafeAck) {
 	c.session.HandleAck(ack)
 	c.triesRemaining = c.tryLimit
 	c.timer.Reset(c.duration)
 }
 
-func (c *TimeoutController) Resend() {
-	panic("Should never call TimeoutController.Resend")
-}
-
-func (c *TimeoutController) resendDueToTimeout() {
+func (c *timeoutController) resendDueToTimeout() {
 	if c.triesRemaining == 0 {
 		c.expire()
 		return
@@ -81,7 +82,7 @@ func (c *TimeoutController) resendDueToTimeout() {
 	c.timer.Reset(c.duration)
 }
 
-func (c *TimeoutController) expire() {
+func (c *timeoutController) expire() {
 	c.onExpire()
 	c.done <- true
 }

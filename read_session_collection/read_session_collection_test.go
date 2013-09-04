@@ -3,15 +3,12 @@ package read_session_collection
 import (
 	"testing"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
+	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
 func TestAddSessionMakesFetchable(t *testing.T) {
-	session := &read_session.MockReadSession{
-		BeginHandler: func() {
-		},
-	}
+	session := &timeout_controller.MockTimeoutController{}
 	addr := test_helpers.MakeMockAddr("fake_network", "a")
 
 	manager := NewReadSessionCollection()
@@ -27,10 +24,7 @@ func TestAddSessionMakesFetchable(t *testing.T) {
 }
 
 func TestRemoveMakesFetchFail(t *testing.T) {
-	session := &read_session.MockReadSession{
-		BeginHandler: func() {
-		},
-	}
+	session := &timeout_controller.MockTimeoutController{}
 	addr := test_helpers.MakeMockAddr("fake_network", "a")
 
 	manager := NewReadSessionCollection()

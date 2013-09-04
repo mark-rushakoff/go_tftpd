@@ -1,59 +1,18 @@
 package timeout_controller
 
 import (
-	"sync"
+	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
 type MockTimeoutController struct {
-	countdownCalls uint
-	restartCalls   uint
-	timeout        chan bool
-
-	mutex sync.RWMutex
+	HandleAckHandler func(*safe_packets.SafeAck)
+	BeginHandler     func()
 }
 
-func MakeMockTimeoutController() *MockTimeoutController {
-	return &MockTimeoutController{
-		timeout: make(chan bool, 1),
-	}
+func (c *MockTimeoutController) HandleAck(ack *safe_packets.SafeAck) {
+	c.HandleAckHandler(ack)
 }
 
-func (c *MockTimeoutController) Timeout() chan bool {
-	return c.timeout
-}
-
-func (c *MockTimeoutController) CauseExpiredTimeout() {
-	c.timeout <- true
-}
-
-func (c *MockTimeoutController) CauseNonExpiredTimeout() {
-	c.timeout <- false
-}
-
-func (c *MockTimeoutController) Countdown() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.countdownCalls++
-	return nil
-}
-
-func (c *MockTimeoutController) CountdownCalls() uint {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.countdownCalls
-}
-
-func (c *MockTimeoutController) Restart() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.restartCalls++
-}
-
-func (c *MockTimeoutController) RestartCalls() uint {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.restartCalls
-}
-
-func (c *MockTimeoutController) Stop() {
+func (c *MockTimeoutController) Begin() {
+	c.BeginHandler()
 }

@@ -4,28 +4,28 @@ import (
 	"net"
 	"sync"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session"
+	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
 type sessionKey string
 
 type ReadSessionCollection struct {
-	sessions map[sessionKey]read_session.ReadSession
+	sessions map[sessionKey]timeout_controller.TimeoutController
 	lock     sync.RWMutex
 }
 
 func NewReadSessionCollection() *ReadSessionCollection {
 	return &ReadSessionCollection{
-		sessions: make(map[sessionKey]read_session.ReadSession),
+		sessions: make(map[sessionKey]timeout_controller.TimeoutController),
 	}
 }
 
-func (s *ReadSessionCollection) Add(session read_session.ReadSession, addr net.Addr) {
+func (s *ReadSessionCollection) Add(session timeout_controller.TimeoutController, addr net.Addr) {
 	key := key(addr)
 	s.add(session, key)
 }
 
-func (s *ReadSessionCollection) Fetch(addr net.Addr) (session read_session.ReadSession, ok bool) {
+func (s *ReadSessionCollection) Fetch(addr net.Addr) (session timeout_controller.TimeoutController, ok bool) {
 	return s.fetch(key(addr))
 }
 
@@ -33,13 +33,13 @@ func (s *ReadSessionCollection) Remove(addr net.Addr) {
 	s.remove(key(addr))
 }
 
-func (s *ReadSessionCollection) add(session read_session.ReadSession, key sessionKey) {
+func (s *ReadSessionCollection) add(session timeout_controller.TimeoutController, key sessionKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.sessions[key] = session
 }
 
-func (s *ReadSessionCollection) fetch(key sessionKey) (session read_session.ReadSession, ok bool) {
+func (s *ReadSessionCollection) fetch(key sessionKey) (session timeout_controller.TimeoutController, ok bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	session, ok = s.sessions[key]
