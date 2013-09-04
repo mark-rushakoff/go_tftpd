@@ -12,6 +12,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packet_provider"
 	"github.com/mark-rushakoff/go_tftpd/session_creator"
+	"github.com/mark-rushakoff/go_tftpd/session_router"
 )
 
 type ServerConfig struct {
@@ -39,14 +40,14 @@ func (c *ServerConfig) Serve() {
 
 	sessions := read_session_collection.NewReadSessionCollection()
 	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr())
-	//sessionRouter := session_router.NewSessionRouter(sessions)
+	sessionRouter := session_router.NewSessionRouter(sessions)
 
 	for {
 		select {
 		case r := <-provider.IncomingSafeReadRequest():
 			sessionCreator.Create(r)
-			//case ack := <-provider.IncomingSafeAck():
-			//sessionRouter.RouteAck(ack)
+			case ack := <-provider.IncomingSafeAck():
+			sessionRouter.RouteAck(ack)
 		}
 	}
 }
