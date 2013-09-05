@@ -34,9 +34,9 @@ func main() {
 	}()
 
 	serverConfig := server_config.ServerConfig{
-		PacketConn: udpConn,
-		Timeout:    1 * time.Second,
-		TryLimit:   2,
+		PacketConn:     udpConn,
+		DefaultTimeout: time.Second,
+		TryLimit:       2,
 	}
 
 	serverConfig.Serve()

@@ -20,7 +20,7 @@ type ServerConfig struct {
 	PacketConn net.PacketConn
 
 	// How long to wait until retrying to send a packet
-	Timeout time.Duration
+	DefaultTimeout time.Duration
 
 	// How many tries to use when sending a packet until giving up
 	TryLimit uint
@@ -36,7 +36,7 @@ func (c *ServerConfig) Serve() {
 	}()
 
 	sessions := read_session_collection.NewReadSessionCollection()
-	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.Timeout, c.TryLimit)
+	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.DefaultTimeout, c.TryLimit)
 	sessionRouter := session_router.NewSessionRouter(sessions)
 
 	for {
