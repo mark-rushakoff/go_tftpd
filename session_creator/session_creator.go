@@ -44,13 +44,13 @@ func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
 		BlockSize: 512,
 	}
 
-	session := read_session.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), func() {
+	removeSession := func() {
 		c.readSessions.Remove(r.Addr)
-	})
+	}
 
-	timeoutController := timeout_controller.NewTimeoutController(c.timeout, c.tryLimit, session, func() {
-		c.readSessions.Remove(r.Addr)
-	})
+	session := read_session.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), removeSession)
+
+	timeoutController := timeout_controller.NewTimeoutController(c.timeout, c.tryLimit, session, removeSession)
 
 	c.readSessions.Add(timeoutController, r.Addr)
 	go timeoutController.BeginSession()
