@@ -19,9 +19,6 @@ type ServerConfig struct {
 	// The PacketConn to use for incoming and outgoing messages
 	PacketConn net.PacketConn
 
-	// What block size to use when sending data packets
-	BlockSize uint16
-
 	// How long to wait until retrying to send a packet
 	Timeout time.Duration
 
