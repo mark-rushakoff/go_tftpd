@@ -14,11 +14,10 @@ type TimeoutController interface {
 
 type timeoutController struct {
 	duration time.Duration
-	tryLimit uint
 
-	triesRemaining uint
+	tryCounter *tryCounter
 
-	timer *time.Timer
+	timer *timer
 
 	session read_session.ReadSession
 
@@ -28,23 +27,25 @@ type timeoutController struct {
 }
 
 func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) TimeoutController {
-	timer := time.NewTimer(time.Second)
-	timer.Stop() // no false timeouts if there's a long time between initializing and calling Begin
+	timer := newTimer(duration)
 
-	c := &timeoutController{
-		duration:       duration,
+	counter := &tryCounter{
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,
-		timer:          timer,
-		session:        session,
-		onExpire:       onExpire,
-		done:           make(chan bool),
+	}
+
+	c := &timeoutController{
+		tryCounter: counter,
+		timer:      timer,
+		session:    session,
+		onExpire:   onExpire,
+		done:       make(chan bool),
 	}
 
 	go func() {
 		for {
 			select {
-			case <-c.timer.C:
+			case <-timer.Elapsed():
 				c.resendDueToTimeout()
 			case <-c.done:
 				return
@@ -57,32 +58,33 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 
 func (c *timeoutController) BeginSession() {
 	c.session.Begin()
-	c.triesRemaining--
-	if c.triesRemaining > 0 {
-		c.timer.Reset(c.duration)
-	} else {
+	c.tryCounter.decrement()
+	if c.tryCounter.isZero() {
 		c.expire()
+	} else {
+		c.timer.Reset()
 	}
 }
 
 func (c *timeoutController) HandleAck(ack *safe_packets.SafeAck) {
 	c.session.HandleAck(ack)
-	c.triesRemaining = c.tryLimit
-	c.timer.Reset(c.duration)
+	c.tryCounter.reset()
+	c.timer.Reset()
 }
 
 func (c *timeoutController) resendDueToTimeout() {
-	if c.triesRemaining == 0 {
+	if c.tryCounter.isZero() {
 		c.expire()
 		return
 	}
 	c.session.Resend()
 
-	c.triesRemaining--
-	c.timer.Reset(c.duration)
+	c.tryCounter.decrement()
+	c.timer.Reset()
 }
 
 func (c *timeoutController) expire() {
 	c.onExpire()
 	c.done <- true
+	c.timer.Destroy()
 }
