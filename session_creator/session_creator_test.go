@@ -3,6 +3,7 @@ package session_creator
 import (
 	"io"
 	"net"
+	"runtime"
 	"testing"
 	"time"
 
@@ -69,6 +70,55 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 	_, found = readSessions.Fetch(fakeAddr)
 	if found {
 		t.Fatalf("Should have timed out and removed itself from collection")
+	}
+}
+
+func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
+	readRequest := &safety_filter.IncomingSafeReadRequest{
+		Read: safe_packets.NewSafeReadRequest("foobar", safe_packets.NetAscii),
+		Addr: fakeAddr,
+	}
+
+	readSessions := read_session_collection.NewReadSessionCollection()
+	reader := make(chan []byte)
+	outgoing := make(chan *safe_packets.SafeData, 1)
+	sessionCreator := NewSessionCreator(
+		readSessions,
+		readerFactory(reader),
+		outgoingFactory(outgoing),
+		2*time.Millisecond,
+		2,
+	)
+
+	sessionCreator.Create(readRequest)
+	_ = runtime.Gosched
+
+	select {
+	case reader <- []byte("foobar"):
+		// ok
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Create did not call begin on the session (because the session did not use the reader)")
+	}
+
+	select {
+	case data := <-outgoing:
+		expected := safe_packets.NewSafeData(1, []byte("foobar"))
+		if !data.Equals(expected) {
+			t.Fatalf("Session sent wrong data packet: got %v, expected %v", data.Bytes(), expected)
+		}
+	default:
+		t.Fatalf("Session did not send data during BeginSession")
+	}
+
+	session, found := readSessions.Fetch(fakeAddr)
+	if !found {
+		t.Fatalf("SessionCreator did not expose the session")
+	}
+
+	session.HandleAck(safe_packets.NewSafeAck(1))
+	_, found = readSessions.Fetch(fakeAddr)
+	if found {
+		t.Fatalf("Finished session was not removed from collection")
 	}
 }
 

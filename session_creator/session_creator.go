@@ -45,7 +45,7 @@ func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
 	}
 
 	session := read_session.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), func() {
-		// nothing - should remove from readSessions but needs tests!
+		c.readSessions.Remove(r.Addr)
 	})
 
 	timeoutController := timeout_controller.NewTimeoutController(c.timeout, c.tryLimit, session, func() {
