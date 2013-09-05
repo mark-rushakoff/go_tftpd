@@ -169,6 +169,66 @@ func TestReadRequestPacketCausesReadRequest(t *testing.T) {
 	}
 }
 
+func TestReadRequestPacketWithOptionsCausesReadRequest(t *testing.T) {
+	const blockNum uint16 = 9876
+
+	incomingReadRequests := make(chan *IncomingReadRequest, 1)
+	handler := &PluggableHandler{
+		ReadRequestHandler: func(read *IncomingReadRequest) {
+			incomingReadRequests <- read
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
+		uint16(packets.ReadOpcode),
+		string("/foo/bar"),
+		byte(0),
+		string("netascii"),
+		byte(0),
+		string("key1"),
+		byte(0),
+		string("value1"),
+		byte(0),
+		string("key2"),
+		byte(0),
+		string("value2"),
+		byte(0),
+	}).Read()
+
+	select {
+	case incomingRead := <-incomingReadRequests:
+		if incomingRead == nil {
+			t.Fatalf("Did not receive Read")
+		}
+
+		if incomingRead.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingRead.Addr)
+		}
+
+		readPacket := incomingRead.Read
+		expectedFilename := "/foo/bar"
+		if readPacket.Filename != expectedFilename {
+			t.Errorf("Received name %v, expected %v", readPacket.Filename, expectedFilename)
+		}
+
+		expectedMode := "netascii"
+		if readPacket.Mode != expectedMode {
+			t.Errorf("Received mode %v, expected %v", readPacket.Mode, expectedMode)
+		}
+
+		if len(readPacket.Options) != 2 {
+			t.Errorf("Received %v option(s), expected 2", len(readPacket.Options))
+		}
+		if readPacket.Options["key1"] != "value1" {
+			t.Errorf("Expected option key1:value1")
+		}
+		if readPacket.Options["key2"] != "value2" {
+			t.Errorf("Expected option key2:value2")
+		}
+	case <-time.After(time.Millisecond):
+		t.Errorf("Did not receive Read in time")
+	}
+}
+
 func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	const blockNum uint16 = 2468
 
@@ -210,6 +270,65 @@ func TestWriteRequestPacketCausesWriteRequest(t *testing.T) {
 	}
 }
 
+func TestWriteRequestPacketWithOptionsCausesWriteRequest(t *testing.T) {
+	const blockNum uint16 = 2468
+
+	incomingWriteRequests := make(chan *IncomingWriteRequest, 1)
+	handler := &PluggableHandler{
+		WriteRequestHandler: func(write *IncomingWriteRequest) {
+			incomingWriteRequests <- write
+		},
+	}
+	agentWithIncomingPacket(t, handler, []interface{}{
+		uint16(packets.WriteOpcode),
+		string("/foo/bar"),
+		byte(0),
+		string("netascii"),
+		byte(0),
+		string("key1"),
+		byte(0),
+		string("value1"),
+		byte(0),
+		string("key2"),
+		byte(0),
+		string("value2"),
+		byte(0),
+	}).Read()
+
+	select {
+	case incomingWrite := <-incomingWriteRequests:
+		if incomingWrite == nil {
+			t.Fatalf("Did not receive Read")
+		}
+
+		if incomingWrite.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", incomingWrite.Addr)
+		}
+		writePacket := incomingWrite.Write
+		expectedFilename := "/foo/bar"
+		if writePacket.Filename != expectedFilename {
+			t.Errorf("Received name %v, expected %v", writePacket.Filename, expectedFilename)
+		}
+
+		expectedMode := "netascii"
+		if writePacket.Mode != expectedMode {
+			t.Errorf("Received mode %v, expected %v", writePacket.Mode, expectedMode)
+		}
+
+		if len(writePacket.Options) != 2 {
+			t.Errorf("Received %v option(s), expected 2", len(writePacket.Options))
+		}
+		if writePacket.Options["key1"] != "value1" {
+			t.Errorf("Expected option key1:value1")
+		}
+		if writePacket.Options["key2"] != "value2" {
+			t.Errorf("Expected option key2:value2")
+		}
+	case <-time.After(time.Millisecond):
+		t.Errorf("Did not receive Read in time")
+	}
+}
+
 type invalidPacketTestCase struct {
 	packet      []byte
 	reason      InvalidTransmissionReason
@@ -228,7 +347,8 @@ func TestInvalidPacketCausesInvalidTransmission(t *testing.T) {
 		{[]byte{0, 5, 1, 1, 32, 0, 5}, PacketTooLong, "Error with data after message"},
 		{[]byte{0, 1, 102, 111, 111}, MissingField, "Read packet with missing filename terminator"},
 		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114}, MissingField, "Read packet with missing mode terminator"},
-		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114, 0, 5}, PacketTooLong, "Read packet with data after mode"},
+		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114, 0, 5}, OptionsMalformed, "Option key missing terminator"},
+		{[]byte{0, 1, 102, 111, 111, 0, 98, 97, 114, 0, 98, 0, 98}, OptionsMalformed, "Option value missing terminator"},
 		{[]byte{255, 255, 255, 255}, InvalidOpcode, "Invalid opcode"},
 	}
 

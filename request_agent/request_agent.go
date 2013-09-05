@@ -156,7 +156,11 @@ func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
 func (a *RequestAgent) handleRead(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
-		read := &packets.ReadRequest{content.filename, content.readWriteMode}
+		read := &packets.ReadRequest{
+			Filename: content.filename,
+			Mode:     content.readWriteMode,
+			Options:  content.options,
+		}
 		a.Handler.HandleReadRequest(&IncomingReadRequest{read, addr})
 	} else {
 		a.handleInvalidPacket(b, invalidReason, addr)
@@ -166,7 +170,11 @@ func (a *RequestAgent) handleRead(b []byte, addr net.Addr) {
 func (a *RequestAgent) handleWrite(b []byte, addr net.Addr) {
 	content, invalidReason, ok := parseReadWriteRequestContent(b)
 	if ok {
-		write := &packets.WriteRequest{content.filename, content.readWriteMode}
+		write := &packets.WriteRequest{
+			Filename: content.filename,
+			Mode:     content.readWriteMode,
+			Options:  content.options,
+		}
 		a.Handler.HandleWriteRequest(&IncomingWriteRequest{write, addr})
 	} else {
 		a.handleInvalidPacket(b, invalidReason, addr)
@@ -176,6 +184,7 @@ func (a *RequestAgent) handleWrite(b []byte, addr net.Addr) {
 type readWriteRequestContent struct {
 	filename      string
 	readWriteMode string
+	options       map[string]string
 }
 
 func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, invalidReason InvalidTransmissionReason, ok bool) {
@@ -187,6 +196,7 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 	}
 
 	content.filename = string(remaining[:nulIndex])
+	content.options = make(map[string]string)
 
 	remaining = remaining[nulIndex+1:]
 	nulIndex = bytes.IndexByte(remaining, 0)
@@ -195,15 +205,38 @@ func parseReadWriteRequestContent(b []byte) (content readWriteRequestContent, in
 		return
 	}
 
-	if len(remaining) > nulIndex+1 {
-		invalidReason = PacketTooLong
+	content.readWriteMode = string(remaining[:nulIndex])
+	remaining = remaining[nulIndex+1:]
+
+	if len(remaining) == 0 {
+		ok = true
 		return
 	}
 
-	content.readWriteMode = string(remaining[:nulIndex])
+	for {
+		keyNulIndex := bytes.IndexByte(remaining, 0)
+		if keyNulIndex == -1 {
+			invalidReason = OptionsMalformed
+			return
+		}
+		key := string(remaining[:keyNulIndex])
+		remaining = remaining[keyNulIndex+1:]
 
-	ok = true
-	return
+		valNulIndex := bytes.IndexByte(remaining, 0)
+		if valNulIndex == -1 {
+			invalidReason = OptionsMalformed
+			return
+		}
+		val := string(remaining[:valNulIndex])
+		remaining = remaining[valNulIndex+1:]
+
+		content.options[key] = val
+
+		if len(remaining) == 0 {
+			ok = true
+			return
+		}
+	}
 }
 
 func (a *RequestAgent) handleInvalidPacket(b []byte, reason InvalidTransmissionReason, addr net.Addr) {

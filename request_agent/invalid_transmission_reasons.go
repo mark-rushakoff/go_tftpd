@@ -9,6 +9,7 @@ const (
 	InvalidOpcode
 	MissingField
 	PacketTooLong
+	OptionsMalformed
 )
 
 func (reason InvalidTransmissionReason) String() string {

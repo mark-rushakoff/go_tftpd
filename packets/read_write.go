@@ -8,9 +8,11 @@ const (
 type ReadRequest struct {
 	Filename string
 	Mode     string
+	Options  map[string]string
 }
 
 type WriteRequest struct {
 	Filename string
 	Mode     string
+	Options  map[string]string
 }
