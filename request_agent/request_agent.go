@@ -103,7 +103,10 @@ func (a *RequestAgent) handleAck(b []byte, addr net.Addr) {
 	if err != nil {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
-	a.Handler.HandleAck(&IncomingAck{&packets.Ack{blockNum}, addr})
+	a.Handler.HandleAck(&IncomingAck{
+		Ack:  &packets.Ack{BlockNumber: blockNum},
+		Addr: addr,
+	})
 }
 
 func (a *RequestAgent) handleData(b []byte, addr net.Addr) {
@@ -119,8 +122,8 @@ func (a *RequestAgent) handleData(b []byte, addr net.Addr) {
 		panic(fmt.Sprintf("Error while reading blockNum from packet: %v", err))
 	}
 	data := b[4:]
-	dataPacket := &packets.Data{blockNum, data}
-	a.Handler.HandleData(&IncomingData{dataPacket, addr})
+	dataPacket := &packets.Data{BlockNumber: blockNum, Data: data}
+	a.Handler.HandleData(&IncomingData{Data: dataPacket, Addr: addr})
 }
 
 func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
@@ -149,7 +152,7 @@ func (a *RequestAgent) handleError(b []byte, addr net.Addr) {
 	}
 
 	message := string(remaining[:nulIndex])
-	errorPacket := &packets.Error{packets.ErrorCode(code), message}
+	errorPacket := &packets.Error{Code: packets.ErrorCode(code), Message: message}
 	a.Handler.HandleError(&IncomingError{errorPacket, addr})
 }
 

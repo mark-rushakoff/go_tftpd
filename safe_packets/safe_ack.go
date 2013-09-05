@@ -13,7 +13,7 @@ type SafeAck struct {
 
 func NewSafeAck(blockNumber uint16) *SafeAck {
 	return &SafeAck{
-		packets.Ack{blockNumber},
+		packets.Ack{BlockNumber: blockNumber},
 	}
 }
 

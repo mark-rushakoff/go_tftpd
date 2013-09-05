@@ -13,7 +13,7 @@ type SafeData struct {
 
 func NewSafeData(blockNumber uint16, data []byte) *SafeData {
 	return &SafeData{
-		packets.Data{blockNumber, data},
+		packets.Data{BlockNumber: blockNumber, Data: data},
 	}
 }
 
