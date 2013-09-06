@@ -5,8 +5,9 @@ import (
 )
 
 type safeRequestHandler struct {
-	safeAck         chan<- *safety_filter.IncomingSafeAck
-	safeReadRequest chan<- *safety_filter.IncomingSafeReadRequest
+	safeAck            chan<- *safety_filter.IncomingSafeAck
+	safeReadRequest    chan<- *safety_filter.IncomingSafeReadRequest
+	safeInvalidMessage chan<- *safety_filter.IncomingInvalidMessage
 }
 
 func (h *safeRequestHandler) HandleSafeAck(a *safety_filter.IncomingSafeAck) {
@@ -15,4 +16,8 @@ func (h *safeRequestHandler) HandleSafeAck(a *safety_filter.IncomingSafeAck) {
 
 func (h *safeRequestHandler) HandleSafeReadRequest(r *safety_filter.IncomingSafeReadRequest) {
 	h.safeReadRequest <- r
+}
+
+func (h *safeRequestHandler) HandleError(i *safety_filter.IncomingInvalidMessage) {
+	h.safeInvalidMessage <- i
 }

@@ -2,7 +2,9 @@ package safety_filter
 
 import (
 	"net"
+	"strings"
 
+	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/request_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
@@ -29,6 +31,12 @@ type IncomingSafeReadRequest struct {
 	Addr net.Addr
 }
 
+type IncomingInvalidMessage struct {
+	ErrorCode    packets.ErrorCode
+	ErrorMessage string
+	Addr         net.Addr
+}
+
 func (f *SafetyFilter) HandleAck(incomingAck *request_agent.IncomingAck) {
 	safeAck := &IncomingSafeAck{
 		Addr: incomingAck.Addr,
@@ -38,9 +46,23 @@ func (f *SafetyFilter) HandleAck(incomingAck *request_agent.IncomingAck) {
 }
 
 func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *request_agent.IncomingReadRequest) {
+	var mode safe_packets.ReadWriteMode
+	switch strings.ToLower(incomingReadRequest.Read.Mode) {
+	case "netascii":
+		mode = safe_packets.NetAscii
+		// TODO: handle and test octet case
+	default:
+		f.Handler.HandleError(&IncomingInvalidMessage{
+			ErrorCode:    packets.Undefined,
+			ErrorMessage: "Invalid mode string",
+			Addr:         incomingReadRequest.Addr,
+		})
+		return
+	}
+
 	safeReadRequestPacket := &safe_packets.SafeReadRequest{
 		Filename: incomingReadRequest.Read.Filename,
-		Mode:     safe_packets.NetAscii, // TODO: handle octet and invalid cases
+		Mode:     mode,
 	}
 
 	safeReadRequest := &IncomingSafeReadRequest{

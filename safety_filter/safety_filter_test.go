@@ -101,3 +101,50 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 		t.Fatalf("Did not receive read request in time")
 	}
 }
+
+func TestRejectsReadRequestWithInvalidMode(t *testing.T) {
+	incomingInvalidMessages := make(chan *IncomingInvalidMessage, 1)
+	handler := &PluggableHandler{
+		ErrorHandler: func(message *IncomingInvalidMessage) {
+			incomingInvalidMessages <- message
+		},
+	}
+
+	modeString := "an invalid mode"
+	var expectedCode packets.ErrorCode = packets.Undefined
+	expectedMessage := "Invalid mode string"
+
+	fakeIncomingReadPacket := &packets.ReadRequest{
+		Filename: "foobar",
+		Mode:     modeString,
+	}
+
+	fakeIncomingReadRequest := &request_agent.IncomingReadRequest{
+		Read: fakeIncomingReadPacket,
+		Addr: fakeAddr,
+	}
+
+	MakeSafetyFilter(handler).HandleReadRequest(fakeIncomingReadRequest)
+
+	select {
+	case invalid := <-incomingInvalidMessages:
+		if invalid == nil {
+			t.Fatalf("Did not receive invalid message")
+		}
+
+		if invalid.Addr.String() != fakeAddr.String() {
+			t.Errorf("Received incorrect addr: %v", invalid.Addr)
+		}
+
+		if invalid.ErrorCode != expectedCode {
+			t.Errorf("Received code %v, expected code %v", invalid.ErrorCode, expectedCode)
+		}
+
+		if invalid.ErrorMessage != expectedMessage {
+			t.Errorf("Received error message '%v', expected message '%v'", invalid.ErrorMessage, expectedMessage)
+		}
+
+	case <-time.After(time.Millisecond):
+		t.Fatalf("Did not receive read request in time")
+	}
+}
