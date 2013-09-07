@@ -17,7 +17,7 @@ type timeoutController struct {
 
 	tryCounter *tryCounter
 
-	timer *timer
+	timer timer
 
 	session read_session.ReadSession
 
@@ -29,6 +29,10 @@ type timeoutController struct {
 func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) TimeoutController {
 	timer := newTimer(duration)
 
+	return manualTimeoutController(tryLimit, session, onExpire, timer)
+}
+
+func manualTimeoutController(tryLimit uint, session read_session.ReadSession, onExpire func(), timer timer) TimeoutController {
 	counter := &tryCounter{
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,
@@ -58,29 +62,29 @@ func NewTimeoutController(duration time.Duration, tryLimit uint, session read_se
 
 func (c *timeoutController) BeginSession() {
 	c.session.Begin()
-	c.tryCounter.decrement()
-	if c.tryCounter.isZero() {
+	c.tryCounter.Decrement()
+	if c.tryCounter.IsZero() {
 		c.expire()
 	} else {
-		c.timer.Reset()
+		c.timer.Restart()
 	}
 }
 
 func (c *timeoutController) HandleAck(ack *safe_packets.SafeAck) {
 	c.session.HandleAck(ack)
-	c.tryCounter.reset()
-	c.timer.Reset()
+	c.tryCounter.Reset()
+	c.timer.Restart()
 }
 
 func (c *timeoutController) resendDueToTimeout() {
-	if c.tryCounter.isZero() {
+	if c.tryCounter.IsZero() {
 		c.expire()
 		return
 	}
 	c.session.Resend()
 
-	c.tryCounter.decrement()
-	c.timer.Reset()
+	c.tryCounter.Decrement()
+	c.timer.Restart()
 }
 
 func (c *timeoutController) expire() {

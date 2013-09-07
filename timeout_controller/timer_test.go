@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-func TestResetSendsToElapsedWhenFinished(t *testing.T) {
+func TestRestartSendsToElapsedWhenFinished(t *testing.T) {
 	timer := newTimer(3 * time.Millisecond)
 
-	timer.Reset()
+	timer.Restart()
 
 	time.Sleep(2 * time.Millisecond)
 	select {
@@ -26,10 +26,10 @@ func TestResetSendsToElapsedWhenFinished(t *testing.T) {
 	}
 }
 
-func TestResetRestartsTimer(t *testing.T) {
+func TestRestartRestartsTimer(t *testing.T) {
 	timer := newTimer(3 * time.Millisecond)
 
-	timer.Reset()
+	timer.Restart()
 
 	time.Sleep(2 * time.Millisecond)
 	select {
@@ -39,7 +39,7 @@ func TestResetRestartsTimer(t *testing.T) {
 		// ok
 	}
 
-	timer.Reset()
+	timer.Restart()
 	select {
 	case <-timer.Elapsed():
 		t.Fatalf("Timer should not have elapsed yet")
@@ -58,7 +58,7 @@ func TestResetRestartsTimer(t *testing.T) {
 func TestDestroyDoesNotElapseTimer(t *testing.T) {
 	timer := newTimer(3 * time.Millisecond)
 
-	timer.Reset()
+	timer.Restart()
 
 	time.Sleep(2 * time.Millisecond)
 	select {

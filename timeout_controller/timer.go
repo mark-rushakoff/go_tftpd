@@ -4,19 +4,21 @@ import (
 	"time"
 )
 
-type timer struct {
+type timer interface {
+	Elapsed() <-chan bool
+	Restart()
+	Destroy()
+}
+
+type manualTimer struct {
 	duration time.Duration
 	elapsed  chan bool
 	restart  chan bool
 	destroy  chan bool
 }
 
-// 3 calls to reset(duration)
-// 1 initial call to stop
-// needs to call stop at end
-
-func newTimer(duration time.Duration) *timer {
-	t := &timer{
+func newTimer(duration time.Duration) timer {
+	t := &manualTimer{
 		duration: duration,
 		restart:  make(chan bool, 1),
 		elapsed:  make(chan bool, 1),
@@ -28,19 +30,19 @@ func newTimer(duration time.Duration) *timer {
 	return t
 }
 
-func (t *timer) Elapsed() <-chan bool {
+func (t *manualTimer) Elapsed() <-chan bool {
 	return t.elapsed
 }
 
-func (t *timer) Reset() {
+func (t *manualTimer) Restart() {
 	t.restart <- true
 }
 
-func (t *timer) Destroy() {
+func (t *manualTimer) Destroy() {
 	t.destroy <- true
 }
 
-func (t *timer) watch() {
+func (t *manualTimer) watch() {
 	select {
 	case <-t.restart:
 		// need initial restart call to get going
