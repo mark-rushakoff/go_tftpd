@@ -3,6 +3,16 @@
 
 An implementation of a TFTP daemon written in Go.
 
+## Usage
+
+go_tftpd should currently be considered alpha status.
+It serves files from the current working directory and it does not yet respect any TFTP options (e.g. larger block size).
+
+If invoked as `go run main.go` it will bind to 127.0.0.1 and port 69 (the default TFTP server port).
+The host and port can be overridden with `-host` and `-port` respectively.
+
+## Implementation notes
+
 This implementation aims to be two things:
 
 1. A functional and useful TFTP daemon suitable for general use.
@@ -20,7 +30,7 @@ To summarize the principles used in designing this TFTP daemon:
 * The main function:
   * Coordinates glue code
 
-## Standards-Compliant
+### Standards-Compliant
 
 This implementation aims to be standards-compliant, following the guidelines set forth in the following RFCs from IETF:
 
