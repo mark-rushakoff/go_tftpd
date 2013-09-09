@@ -18,7 +18,7 @@ func NewSessionRouter(readSessions *read_session_collection.ReadSessionCollectio
 func (r *SessionRouter) RouteAck(ack *safety_filter.IncomingSafeAck) {
 	session, found := r.readSessions.Fetch(ack.Addr)
 	if !found {
-		panic("Tried to route ack to unknown session")
+		return
 	}
 
 	session.HandleAck(ack.Ack)

@@ -14,9 +14,20 @@ type SafeError struct {
 
 func NewFileNotFoundError() *SafeError {
 	return &SafeError{
-		packets.FileNotFound,
-		"File not found",
+		Code:    packets.FileNotFound,
+		Message: "File not found",
 	}
+}
+
+func NewAccessViolationError(message string) *SafeError {
+	return &SafeError{
+		Code:    packets.AccessViolation,
+		Message: message,
+	}
+}
+
+func (e *SafeError) Equals(other *SafeError) bool {
+	return e.Code == other.Code && e.Message == other.Message
 }
 
 func (e *SafeError) Bytes() []byte {

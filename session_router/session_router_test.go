@@ -37,3 +37,16 @@ func TestRouteAckRoutes(t *testing.T) {
 		t.Fatalf("RouteAck should have sent Ack")
 	}
 }
+
+func TestRouteAckToMissingSessionDoesNotPanic(t *testing.T) {
+	sessions := read_session_collection.NewReadSessionCollection()
+	router := NewSessionRouter(sessions)
+	fakeAddr := test_helpers.MakeMockAddr("fake_network", "a")
+
+	router.RouteAck(&safety_filter.IncomingSafeAck{
+		Addr: fakeAddr,
+		Ack:  safe_packets.NewSafeAck(8),
+	})
+
+	// ok
+}

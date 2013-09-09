@@ -49,19 +49,19 @@ func (c *ServerConfig) Serve() {
 	}
 }
 
-func readerFromFilename(filename string) io.Reader {
+func readerFromFilename(filename string) (io.Reader, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
 	// serve files as though the filesystem root is the working directory
 	file, err := os.Open(path.Join(workingDir, path.Clean(filename)))
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
-	return file
+	return file, nil
 }
 
 func (c *ServerConfig) outgoingHandlerFromAddr() session_creator.OutgoingHandlerFromAddr {

@@ -14,7 +14,7 @@ type ResponseAgent struct {
 // Takes safe packets and serializes them and sends them out on the associated connection.
 type ResponderAgent interface {
 	SendAck(ack *safe_packets.SafeAck)
-	SendErrorPacket(e *safe_packets.SafeError)
+	SendError(e *safe_packets.SafeError)
 	SendData(data *safe_packets.SafeData)
 }
 
@@ -29,7 +29,7 @@ func (a *ResponseAgent) SendAck(ack *safe_packets.SafeAck) {
 	a.conn.WriteTo(ack.Bytes(), a.clientAddr)
 }
 
-func (a *ResponseAgent) SendErrorPacket(e *safe_packets.SafeError) {
+func (a *ResponseAgent) SendError(e *safe_packets.SafeError) {
 	a.conn.WriteTo(e.Bytes(), a.clientAddr)
 }
 

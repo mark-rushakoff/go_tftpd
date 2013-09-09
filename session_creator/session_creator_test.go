@@ -1,12 +1,13 @@
 package session_creator
 
 import (
+	"errors"
 	"io"
 	"net"
-	"runtime"
 	"testing"
 	"time"
 
+	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/read_session"
 	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
@@ -28,7 +29,7 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 	sessionCreator := NewSessionCreator(
 		readSessions,
 		readerFactory(reader),
-		outgoingFactory(outgoing),
+		outgoingFactory(outgoing, nil),
 		2*time.Millisecond,
 		2,
 	)
@@ -85,13 +86,12 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 	sessionCreator := NewSessionCreator(
 		readSessions,
 		readerFactory(reader),
-		outgoingFactory(outgoing),
+		outgoingFactory(outgoing, nil),
 		2*time.Millisecond,
 		2,
 	)
 
 	sessionCreator.Create(readRequest)
-	_ = runtime.Gosched
 
 	select {
 	case reader <- []byte("foobar"):
@@ -122,6 +122,35 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 	}
 }
 
+func TestErrorCreatingReaderCausesErrorMessage(t *testing.T) {
+	readRequest := &safety_filter.IncomingSafeReadRequest{
+		Read: safe_packets.NewSafeReadRequest("foobar", safe_packets.NetAscii),
+		Addr: fakeAddr,
+	}
+
+	err := errors.New("something about foobar")
+	readSessions := read_session_collection.NewReadSessionCollection()
+	errors := make(chan *safe_packets.SafeError, 1)
+	sessionCreator := NewSessionCreator(
+		readSessions,
+		errorReaderFactory(err),
+		outgoingFactory(nil, errors),
+		2*time.Millisecond,
+		2,
+	)
+
+	sessionCreator.Create(readRequest)
+	select {
+	case e := <-errors:
+		expected := &safe_packets.SafeError{Code: packets.AccessViolation, Message: "something about foobar"}
+		if !e.Equals(expected) {
+			t.Fatalf("Session sent wrong error packet: got %v, expected %v", e.Bytes(), expected.Bytes())
+		}
+	default:
+		t.Fatalf("Session did not send data during BeginSession")
+	}
+}
+
 type channelReader struct {
 	In <-chan []byte
 }
@@ -135,23 +164,35 @@ func readerFactory(in chan []byte) ReaderFromFilename {
 		In: in,
 	}
 
-	return func(filename string) io.Reader {
-		return reader
+	return func(filename string) (io.Reader, error) {
+		return reader, nil
+	}
+}
+
+func errorReaderFactory(err error) ReaderFromFilename {
+	return func(string) (io.Reader, error) {
+		return nil, err
 	}
 }
 
 type channelNotifier struct {
 	Out chan<- *safe_packets.SafeData
+	Err chan<- *safe_packets.SafeError
 }
 
 func (n *channelNotifier) SendData(data *safe_packets.SafeData) {
 	n.Out <- data
 }
 
-func outgoingFactory(out chan *safe_packets.SafeData) OutgoingHandlerFromAddr {
+func (n *channelNotifier) SendError(err *safe_packets.SafeError) {
+	n.Err <- err
+}
+
+func outgoingFactory(out chan *safe_packets.SafeData, err chan *safe_packets.SafeError) OutgoingHandlerFromAddr {
 	return func(net.Addr) read_session.OutgoingHandler {
 		return &channelNotifier{
 			Out: out,
+			Err: err,
 		}
 	}
 }
