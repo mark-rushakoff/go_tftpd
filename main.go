@@ -1,17 +1,29 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/server_config"
 )
 
+var host string
+var port int
+
+func init() {
+	flag.StringVar(&host, "host", "127.0.0.1", "Host to use for server")
+	flag.IntVar(&port, "port", 69, "Port to use for server")
+}
+
 func main() {
-	bindAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:6969")
+	flag.Parse()
+
+	bindAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(host, strconv.Itoa(port)))
 	if err != nil {
 		panic(err.Error())
 	}
