@@ -41,7 +41,7 @@ func TestErrorSerializes(t *testing.T) {
 	expectedPacketOut := []byte{0, 5, 0, 1, 0x46, 0x69, 0x6c, 0x65, 0x20, 0x6e, 0x6f, 0x74, 0x20, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0}
 	agent, conn, addr := buildAgentThatWrites(expectedPacketOut)
 	errorPacket := safe_packets.NewFileNotFoundError()
-	agent.SendErrorPacket(errorPacket)
+	agent.SendError(errorPacket)
 
 	lastPacketOut, lastAddr, ok := conn.LastPacketOut()
 	if !ok {
