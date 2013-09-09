@@ -6,7 +6,7 @@ An implementation of a TFTP daemon written in Go.
 This implementation aims to be two things:
 
 1. A functional and useful TFTP daemon suitable for general use.
-2. A Go project exemplary of clean code, common idioms, and code organization when designing a server that 
+2. A Go project exemplary of clean code, common idioms, and code organization when designing a server that serves multiple clients simultaneously.
 
 To summarize the principles used in designing this TFTP daemon:
 
@@ -51,7 +51,7 @@ This implementation aims to be standards-compliant, following the guidelines set
 
 - [x] Parses options
 
-* [RFC 2348](http://tools.ietf.org/html/rfc2348): TFTP Blocksize option
+[RFC 2348](http://tools.ietf.org/html/rfc2348): TFTP Blocksize option
 
 - [ ] Responds with OACK for block size
 - [ ] Respects block size option
