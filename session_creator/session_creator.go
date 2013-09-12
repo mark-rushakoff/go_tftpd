@@ -5,15 +5,15 @@ import (
 	"net"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session"
 	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
+	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
 type ReaderFromFilename func(filename string) (io.Reader, error)
-type OutgoingHandlerFromAddr func(net.Addr) read_session.OutgoingHandler
+type OutgoingHandlerFromAddr func(net.Addr) readsession.OutgoingHandler
 
 type SessionCreator struct {
 	readSessions           *read_session_collection.ReadSessionCollection
@@ -48,7 +48,7 @@ func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
 		return
 	}
 
-	sessionConfig := &read_session.Config{
+	sessionConfig := &readsession.Config{
 		Reader:    reader,
 		BlockSize: 512,
 	}
@@ -57,7 +57,7 @@ func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
 		c.readSessions.Remove(r.Addr)
 	}
 
-	session := read_session.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), removeSession)
+	session := readsession.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), removeSession)
 
 	timeoutController := timeout_controller.NewTimeoutController(c.timeout, c.tryLimit, session, removeSession)
 

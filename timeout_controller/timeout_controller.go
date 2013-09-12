@@ -3,7 +3,7 @@ package timeout_controller
 import (
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session"
+	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
@@ -19,20 +19,20 @@ type timeoutController struct {
 
 	timer timer
 
-	session read_session.ReadSession
+	session readsession.ReadSession
 
 	onExpire func()
 
 	done chan bool
 }
 
-func NewTimeoutController(duration time.Duration, tryLimit uint, session read_session.ReadSession, onExpire func()) TimeoutController {
+func NewTimeoutController(duration time.Duration, tryLimit uint, session readsession.ReadSession, onExpire func()) TimeoutController {
 	timer := newTimer(duration)
 
 	return manualTimeoutController(tryLimit, session, onExpire, timer)
 }
 
-func manualTimeoutController(tryLimit uint, session read_session.ReadSession, onExpire func(), timer timer) TimeoutController {
+func manualTimeoutController(tryLimit uint, session readsession.ReadSession, onExpire func(), timer timer) TimeoutController {
 	counter := &tryCounter{
 		tryLimit:       tryLimit,
 		triesRemaining: tryLimit,

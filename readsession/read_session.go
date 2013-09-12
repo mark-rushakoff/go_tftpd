@@ -1,4 +1,4 @@
-package read_session
+package readsession
 
 import (
 	"io"

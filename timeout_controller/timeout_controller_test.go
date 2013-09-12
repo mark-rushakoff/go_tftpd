@@ -4,14 +4,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session"
+	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
 func TestBeginSessionThenTimeoutResendsData(t *testing.T) {
 	begin := make(chan bool, 1)
 	resend := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 			begin <- true
 		},
@@ -50,7 +50,7 @@ func TestBeginSessionThenTimeoutResendsData(t *testing.T) {
 func TestNewDoesNotStartTimer(t *testing.T) {
 	resend := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		ResendHandler: func() {
 			resend <- true
 		},
@@ -72,7 +72,7 @@ func TestAckRestartsTimer(t *testing.T) {
 	resend := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
 	ack := make(chan *safe_packets.SafeAck, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 		},
 		ResendHandler: func() {
@@ -121,7 +121,7 @@ func TestAckRestartsTimer(t *testing.T) {
 func TestStopResendingAfterTryLimit(t *testing.T) {
 	send := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 			send <- true
 		},
@@ -195,7 +195,7 @@ func TestStopResendingAfterTryLimit(t *testing.T) {
 func TestHandleAckRestartsTryLimit(t *testing.T) {
 	resend := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 		},
 		ResendHandler: func() {
@@ -272,7 +272,7 @@ func TestHandleAckRestartsTryLimit(t *testing.T) {
 
 func TestTimingOutWithOneTryCausesFinish(t *testing.T) {
 	expired := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 		},
 	}
@@ -295,7 +295,7 @@ func TestTimingOutWithMultipleTriesCausesFinish(t *testing.T) {
 	resend := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
 	expired := make(chan bool, 1)
-	session := &read_session.MockReadSession{
+	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 			begin <- true
 		},

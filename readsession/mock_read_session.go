@@ -1,4 +1,4 @@
-package read_session
+package readsession
 
 import (
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"

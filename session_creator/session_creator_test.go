@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/read_session"
 	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
+	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
@@ -189,7 +189,7 @@ func (n *channelNotifier) SendError(err *safe_packets.SafeError) {
 }
 
 func outgoingFactory(out chan *safe_packets.SafeData, err chan *safe_packets.SafeError) OutgoingHandlerFromAddr {
-	return func(net.Addr) read_session.OutgoingHandler {
+	return func(net.Addr) readsession.OutgoingHandler {
 		return &channelNotifier{
 			Out: out,
 			Err: err,
