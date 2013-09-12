@@ -1,4 +1,4 @@
-package response_agent
+package responseagent
 
 import (
 	"sync"

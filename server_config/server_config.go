@@ -9,7 +9,7 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
-	"github.com/mark-rushakoff/go_tftpd/response_agent"
+	"github.com/mark-rushakoff/go_tftpd/responseagent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packet_provider"
 	"github.com/mark-rushakoff/go_tftpd/session_creator"
 	"github.com/mark-rushakoff/go_tftpd/session_router"
@@ -66,6 +66,6 @@ func readerFromFilename(filename string) (io.Reader, error) {
 
 func (c *ServerConfig) outgoingHandlerFromAddr() session_creator.OutgoingHandlerFromAddr {
 	return func(addr net.Addr) readsession.OutgoingHandler {
-		return response_agent.NewResponseAgent(c.PacketConn, addr)
+		return responseagent.NewResponseAgent(c.PacketConn, addr)
 	}
 }
