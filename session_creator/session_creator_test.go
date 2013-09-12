@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
 	"github.com/mark-rushakoff/go_tftpd/readsession"
+	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
@@ -23,7 +23,7 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 		Addr: fakeAddr,
 	}
 
-	readSessions := read_session_collection.NewReadSessionCollection()
+	readSessions := readsessioncollection.NewReadSessionCollection()
 	reader := make(chan []byte)
 	outgoing := make(chan *safe_packets.SafeData, 1)
 	sessionCreator := NewSessionCreator(
@@ -80,7 +80,7 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 		Addr: fakeAddr,
 	}
 
-	readSessions := read_session_collection.NewReadSessionCollection()
+	readSessions := readsessioncollection.NewReadSessionCollection()
 	reader := make(chan []byte)
 	outgoing := make(chan *safe_packets.SafeData, 1)
 	sessionCreator := NewSessionCreator(
@@ -129,7 +129,7 @@ func TestErrorCreatingReaderCausesErrorMessage(t *testing.T) {
 	}
 
 	err := errors.New("something about foobar")
-	readSessions := read_session_collection.NewReadSessionCollection()
+	readSessions := readsessioncollection.NewReadSessionCollection()
 	errors := make(chan *safe_packets.SafeError, 1)
 	sessionCreator := NewSessionCreator(
 		readSessions,

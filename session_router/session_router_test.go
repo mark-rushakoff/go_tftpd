@@ -3,7 +3,7 @@ package session_router
 import (
 	"testing"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
+	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestRouteAckRoutes(t *testing.T) {
-	sessions := read_session_collection.NewReadSessionCollection()
+	sessions := readsessioncollection.NewReadSessionCollection()
 	router := NewSessionRouter(sessions)
 	fakeAddr := test_helpers.MakeMockAddr("fake_network", "a")
 
@@ -39,7 +39,7 @@ func TestRouteAckRoutes(t *testing.T) {
 }
 
 func TestRouteAckToMissingSessionDoesNotPanic(t *testing.T) {
-	sessions := read_session_collection.NewReadSessionCollection()
+	sessions := readsessioncollection.NewReadSessionCollection()
 	router := NewSessionRouter(sessions)
 	fakeAddr := test_helpers.MakeMockAddr("fake_network", "a")
 

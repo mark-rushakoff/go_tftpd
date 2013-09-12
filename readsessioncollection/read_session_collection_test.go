@@ -1,4 +1,4 @@
-package read_session_collection
+package readsessioncollection
 
 import (
 	"testing"

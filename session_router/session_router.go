@@ -1,15 +1,15 @@
 package session_router
 
 import (
-	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
+	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 )
 
 type SessionRouter struct {
-	readSessions *read_session_collection.ReadSessionCollection
+	readSessions *readsessioncollection.ReadSessionCollection
 }
 
-func NewSessionRouter(readSessions *read_session_collection.ReadSessionCollection) *SessionRouter {
+func NewSessionRouter(readSessions *readsessioncollection.ReadSessionCollection) *SessionRouter {
 	return &SessionRouter{
 		readSessions: readSessions,
 	}

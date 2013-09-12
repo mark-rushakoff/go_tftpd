@@ -7,8 +7,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/read_session_collection"
 	"github.com/mark-rushakoff/go_tftpd/readsession"
+	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/response_agent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packet_provider"
 	"github.com/mark-rushakoff/go_tftpd/session_creator"
@@ -35,7 +35,7 @@ func (c *ServerConfig) Serve() {
 		}
 	}()
 
-	sessions := read_session_collection.NewReadSessionCollection()
+	sessions := readsessioncollection.NewReadSessionCollection()
 	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.DefaultTimeout, c.TryLimit)
 	sessionRouter := session_router.NewSessionRouter(sessions)
 
