@@ -6,7 +6,7 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
@@ -63,7 +63,7 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 
 	expectedFilename := "foobar"
 	modeString := "netascii"
-	expectedMode := safe_packets.NetAscii
+	expectedMode := safepackets.NetAscii
 
 	fakeIncomingReadPacket := &packets.ReadRequest{
 		Filename: expectedFilename,

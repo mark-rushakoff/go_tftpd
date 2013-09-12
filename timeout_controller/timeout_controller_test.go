@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/mark-rushakoff/go_tftpd/readsession"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 func TestBeginSessionThenTimeoutResendsData(t *testing.T) {
@@ -71,14 +71,14 @@ func TestNewDoesNotStartTimer(t *testing.T) {
 func TestAckRestartsTimer(t *testing.T) {
 	resend := make(chan bool, 1)
 	restartTimer := make(chan bool, 1)
-	ack := make(chan *safe_packets.SafeAck, 1)
+	ack := make(chan *safepackets.SafeAck, 1)
 	session := &readsession.MockReadSession{
 		BeginHandler: func() {
 		},
 		ResendHandler: func() {
 			resend <- true
 		},
-		HandleAckHandler: func(a *safe_packets.SafeAck) {
+		HandleAckHandler: func(a *safepackets.SafeAck) {
 			ack <- a
 		},
 	}
@@ -92,7 +92,7 @@ func TestAckRestartsTimer(t *testing.T) {
 		t.Fatalf("Timer should have been restarted upon begin")
 	}
 
-	controller.HandleAck(safe_packets.NewSafeAck(8))
+	controller.HandleAck(safepackets.NewSafeAck(8))
 	select {
 	case <-restartTimer:
 		// ok
@@ -201,7 +201,7 @@ func TestHandleAckRestartsTryLimit(t *testing.T) {
 		ResendHandler: func() {
 			resend <- true
 		},
-		HandleAckHandler: func(_ *safe_packets.SafeAck) {
+		HandleAckHandler: func(_ *safepackets.SafeAck) {
 		},
 	}
 	timer := NewMockTimer(restartTimer, make(chan bool, 1))
@@ -243,7 +243,7 @@ func TestHandleAckRestartsTryLimit(t *testing.T) {
 		t.Fatalf("Controller did not re-send upon elapse")
 	}
 
-	controller.HandleAck(safe_packets.NewSafeAck(5))
+	controller.HandleAck(safepackets.NewSafeAck(5))
 	for i := 0; i < 3; i++ {
 		timer.Elapse()
 		runtime.Gosched()

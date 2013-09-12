@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/readsession"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 type TimeoutController interface {
 	BeginSession()
-	HandleAck(*safe_packets.SafeAck)
+	HandleAck(*safepackets.SafeAck)
 }
 
 type timeoutController struct {
@@ -70,7 +70,7 @@ func (c *timeoutController) BeginSession() {
 	}
 }
 
-func (c *timeoutController) HandleAck(ack *safe_packets.SafeAck) {
+func (c *timeoutController) HandleAck(ack *safepackets.SafeAck) {
 	c.session.HandleAck(ack)
 	c.tryCounter.Reset()
 	c.timer.Restart()

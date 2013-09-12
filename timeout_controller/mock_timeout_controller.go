@@ -1,15 +1,15 @@
 package timeout_controller
 
 import (
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 type MockTimeoutController struct {
-	HandleAckHandler    func(*safe_packets.SafeAck)
+	HandleAckHandler    func(*safepackets.SafeAck)
 	BeginSessionHandler func()
 }
 
-func (c *MockTimeoutController) HandleAck(ack *safe_packets.SafeAck) {
+func (c *MockTimeoutController) HandleAck(ack *safepackets.SafeAck) {
 	c.HandleAckHandler(ack)
 }
 

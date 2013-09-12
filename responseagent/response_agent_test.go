@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
@@ -19,7 +19,7 @@ func TestNewResponseAgent(t *testing.T) {
 func TestAckSerializes(t *testing.T) {
 	expectedPacketOut := []byte{0, 4, 4, 210}
 	agent, conn, addr := buildAgentThatWrites(expectedPacketOut)
-	ack := safe_packets.NewSafeAck(1234)
+	ack := safepackets.NewSafeAck(1234)
 	agent.SendAck(ack)
 
 	lastPacketOut, lastAddr, ok := conn.LastPacketOut()
@@ -40,7 +40,7 @@ func TestErrorSerializes(t *testing.T) {
 	// opcode 5, error code 1, string "File not found"
 	expectedPacketOut := []byte{0, 5, 0, 1, 0x46, 0x69, 0x6c, 0x65, 0x20, 0x6e, 0x6f, 0x74, 0x20, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0}
 	agent, conn, addr := buildAgentThatWrites(expectedPacketOut)
-	errorPacket := safe_packets.NewFileNotFoundError()
+	errorPacket := safepackets.NewFileNotFoundError()
 	agent.SendError(errorPacket)
 
 	lastPacketOut, lastAddr, ok := conn.LastPacketOut()
@@ -61,7 +61,7 @@ func TestDataSerializes(t *testing.T) {
 	// opcode 3, block number 1234, string "foo"
 	expectedPacketOut := []byte{0, 3, 4, 210, 102, 111, 111}
 	agent, conn, addr := buildAgentThatWrites(expectedPacketOut)
-	data := safe_packets.NewSafeData(1234, []byte("foo"))
+	data := safepackets.NewSafeData(1234, []byte("foo"))
 	agent.SendData(data)
 
 	lastPacketOut, lastAddr, ok := conn.LastPacketOut()

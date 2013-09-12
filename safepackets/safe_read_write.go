@@ -1,4 +1,4 @@
-package safe_packets
+package safepackets
 
 import ()
 

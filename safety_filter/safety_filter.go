@@ -6,7 +6,7 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 // SafetyFilter converts potentially unsafe messages from a RequestAgent into guaranteed-safe messages.
@@ -22,12 +22,12 @@ func MakeSafetyFilter(handler SafeRequestHandler) *SafetyFilter {
 }
 
 type IncomingSafeAck struct {
-	Ack  *safe_packets.SafeAck
+	Ack  *safepackets.SafeAck
 	Addr net.Addr
 }
 
 type IncomingSafeReadRequest struct {
-	Read *safe_packets.SafeReadRequest
+	Read *safepackets.SafeReadRequest
 	Addr net.Addr
 }
 
@@ -40,16 +40,16 @@ type IncomingInvalidMessage struct {
 func (f *SafetyFilter) HandleAck(incomingAck *requestagent.IncomingAck) {
 	safeAck := &IncomingSafeAck{
 		Addr: incomingAck.Addr,
-		Ack:  safe_packets.NewSafeAck(incomingAck.Ack.BlockNumber),
+		Ack:  safepackets.NewSafeAck(incomingAck.Ack.BlockNumber),
 	}
 	f.Handler.HandleSafeAck(safeAck)
 }
 
 func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *requestagent.IncomingReadRequest) {
-	var mode safe_packets.ReadWriteMode
+	var mode safepackets.ReadWriteMode
 	switch strings.ToLower(incomingReadRequest.Read.Mode) {
 	case "netascii":
-		mode = safe_packets.NetAscii
+		mode = safepackets.NetAscii
 		// TODO: handle and test octet case
 	default:
 		f.Handler.HandleError(&IncomingInvalidMessage{
@@ -60,7 +60,7 @@ func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *requestagent.Incom
 		return
 	}
 
-	safeReadRequestPacket := &safe_packets.SafeReadRequest{
+	safeReadRequestPacket := &safepackets.SafeReadRequest{
 		Filename: incomingReadRequest.Read.Filename,
 		Mode:     mode,
 	}

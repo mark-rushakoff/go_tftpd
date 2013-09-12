@@ -1,23 +1,23 @@
 package readsession
 
 import (
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 type OutgoingHandler interface {
-	SendData(*safe_packets.SafeData)
-	SendError(*safe_packets.SafeError)
+	SendData(*safepackets.SafeData)
+	SendError(*safepackets.SafeError)
 }
 
 type PluggableHandler struct {
-	SendDataHandler  func(*safe_packets.SafeData)
-	SendErrorHandler func(*safe_packets.SafeError)
+	SendDataHandler  func(*safepackets.SafeData)
+	SendErrorHandler func(*safepackets.SafeError)
 }
 
-func (h *PluggableHandler) SendData(data *safe_packets.SafeData) {
+func (h *PluggableHandler) SendData(data *safepackets.SafeData) {
 	h.SendDataHandler(data)
 }
 
-func (h *PluggableHandler) SendError(e *safe_packets.SafeError) {
+func (h *PluggableHandler) SendError(e *safepackets.SafeError) {
 	h.SendErrorHandler(e)
 }

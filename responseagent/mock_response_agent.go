@@ -3,13 +3,13 @@ package responseagent
 import (
 	"sync"
 
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 type MockResponseAgent struct {
-	acks   []*safe_packets.SafeAck
-	errors []*safe_packets.SafeError
-	data   []*safe_packets.SafeData
+	acks   []*safepackets.SafeAck
+	errors []*safepackets.SafeError
+	data   []*safepackets.SafeData
 
 	totalMessagesSent int
 
@@ -18,9 +18,9 @@ type MockResponseAgent struct {
 
 func MakeMockResponseAgent() *MockResponseAgent {
 	return &MockResponseAgent{
-		acks:   make([]*safe_packets.SafeAck, 5),
-		errors: make([]*safe_packets.SafeError, 5),
-		data:   make([]*safe_packets.SafeData, 5),
+		acks:   make([]*safepackets.SafeAck, 5),
+		errors: make([]*safepackets.SafeError, 5),
+		data:   make([]*safepackets.SafeData, 5),
 	}
 }
 
@@ -30,7 +30,7 @@ func (a *MockResponseAgent) TotalMessagesSent() int {
 	return a.totalMessagesSent
 }
 
-func (a *MockResponseAgent) MostRecentAck() *safe_packets.SafeAck {
+func (a *MockResponseAgent) MostRecentAck() *safepackets.SafeAck {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	if len(a.acks) == 0 {
@@ -40,7 +40,7 @@ func (a *MockResponseAgent) MostRecentAck() *safe_packets.SafeAck {
 	return a.acks[len(a.acks)-1]
 }
 
-func (a *MockResponseAgent) MostRecentData() *safe_packets.SafeData {
+func (a *MockResponseAgent) MostRecentData() *safepackets.SafeData {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	if len(a.data) == 0 {
@@ -50,21 +50,21 @@ func (a *MockResponseAgent) MostRecentData() *safe_packets.SafeData {
 	return a.data[len(a.data)-1]
 }
 
-func (a *MockResponseAgent) SendAck(ack *safe_packets.SafeAck) {
+func (a *MockResponseAgent) SendAck(ack *safepackets.SafeAck) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.acks = append(a.acks, ack)
 	a.totalMessagesSent++
 }
 
-func (a *MockResponseAgent) SendErrorPacket(e *safe_packets.SafeError) {
+func (a *MockResponseAgent) SendErrorPacket(e *safepackets.SafeError) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.errors = append(a.errors, e)
 	a.totalMessagesSent++
 }
 
-func (a *MockResponseAgent) SendData(data *safe_packets.SafeData) {
+func (a *MockResponseAgent) SendData(data *safepackets.SafeData) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.data = append(a.data, data)

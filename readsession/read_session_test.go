@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 func TestBegin(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -37,9 +37,9 @@ func TestBegin(t *testing.T) {
 }
 
 func TestCurrentAckAdvancesData(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -60,7 +60,7 @@ func TestCurrentAckAdvancesData(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 
 	select {
 	case d := <-dataChan:
@@ -77,9 +77,9 @@ func TestCurrentAckAdvancesData(t *testing.T) {
 }
 
 func TestPreviousAckRepeatsData(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -100,7 +100,7 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 	select {
 	case d := <-dataChan:
 		// same case asserted in another test
@@ -111,7 +111,7 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 	select {
 	case d := <-dataChan:
 		// same case asserted in another test
@@ -127,9 +127,9 @@ func TestPreviousAckRepeatsData(t *testing.T) {
 }
 
 func TestResendRepeatsData(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -161,7 +161,7 @@ func TestResendRepeatsData(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 	select {
 	case d := <-dataChan:
 		if d.BlockNumber != 2 {
@@ -189,10 +189,10 @@ func TestResendRepeatsData(t *testing.T) {
 }
 
 func TestFinishesInSinglePacket(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	finished := make(chan bool, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -222,7 +222,7 @@ func TestFinishesInSinglePacket(t *testing.T) {
 		// ok
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 
 	select {
 	case <-finished:
@@ -233,10 +233,10 @@ func TestFinishesInSinglePacket(t *testing.T) {
 }
 
 func TestFinishesInMultiplePackets(t *testing.T) {
-	dataChan := make(chan *safe_packets.SafeData, 1)
+	dataChan := make(chan *safepackets.SafeData, 1)
 	finished := make(chan bool, 1)
 	handler := &PluggableHandler{
-		SendDataHandler: func(d *safe_packets.SafeData) {
+		SendDataHandler: func(d *safepackets.SafeData) {
 			dataChan <- d
 		},
 	}
@@ -269,7 +269,7 @@ func TestFinishesInMultiplePackets(t *testing.T) {
 		// ok
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 	select {
 	case d := <-dataChan:
 		if d.BlockNumber != 2 {
@@ -283,7 +283,7 @@ func TestFinishesInMultiplePackets(t *testing.T) {
 		t.Fatalf("Did not see data packet in time")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(2))
+	session.HandleAck(safepackets.NewSafeAck(2))
 
 	select {
 	case <-finished:

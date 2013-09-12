@@ -10,7 +10,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
@@ -19,13 +19,13 @@ var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a")
 
 func TestCreateAddsNewSessionToCollection(t *testing.T) {
 	readRequest := &safety_filter.IncomingSafeReadRequest{
-		Read: safe_packets.NewSafeReadRequest("foobar", safe_packets.NetAscii),
+		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}
 
 	readSessions := readsessioncollection.NewReadSessionCollection()
 	reader := make(chan []byte)
-	outgoing := make(chan *safe_packets.SafeData, 1)
+	outgoing := make(chan *safepackets.SafeData, 1)
 	sessionCreator := NewSessionCreator(
 		readSessions,
 		readerFactory(reader),
@@ -45,7 +45,7 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 
 	select {
 	case data := <-outgoing:
-		expected := safe_packets.NewSafeData(1, []byte("foobar"))
+		expected := safepackets.NewSafeData(1, []byte("foobar"))
 		if !data.Equals(expected) {
 			t.Fatalf("Session sent wrong data packet: got %v, expected %v", data.Bytes(), expected)
 		}
@@ -76,13 +76,13 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 
 func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 	readRequest := &safety_filter.IncomingSafeReadRequest{
-		Read: safe_packets.NewSafeReadRequest("foobar", safe_packets.NetAscii),
+		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}
 
 	readSessions := readsessioncollection.NewReadSessionCollection()
 	reader := make(chan []byte)
-	outgoing := make(chan *safe_packets.SafeData, 1)
+	outgoing := make(chan *safepackets.SafeData, 1)
 	sessionCreator := NewSessionCreator(
 		readSessions,
 		readerFactory(reader),
@@ -102,7 +102,7 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 
 	select {
 	case data := <-outgoing:
-		expected := safe_packets.NewSafeData(1, []byte("foobar"))
+		expected := safepackets.NewSafeData(1, []byte("foobar"))
 		if !data.Equals(expected) {
 			t.Fatalf("Session sent wrong data packet: got %v, expected %v", data.Bytes(), expected)
 		}
@@ -115,7 +115,7 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 		t.Fatalf("SessionCreator did not expose the session")
 	}
 
-	session.HandleAck(safe_packets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(1))
 	_, found = readSessions.Fetch(fakeAddr)
 	if found {
 		t.Fatalf("Finished session was not removed from collection")
@@ -124,13 +124,13 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 
 func TestErrorCreatingReaderCausesErrorMessage(t *testing.T) {
 	readRequest := &safety_filter.IncomingSafeReadRequest{
-		Read: safe_packets.NewSafeReadRequest("foobar", safe_packets.NetAscii),
+		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}
 
 	err := errors.New("something about foobar")
 	readSessions := readsessioncollection.NewReadSessionCollection()
-	errors := make(chan *safe_packets.SafeError, 1)
+	errors := make(chan *safepackets.SafeError, 1)
 	sessionCreator := NewSessionCreator(
 		readSessions,
 		errorReaderFactory(err),
@@ -142,7 +142,7 @@ func TestErrorCreatingReaderCausesErrorMessage(t *testing.T) {
 	sessionCreator.Create(readRequest)
 	select {
 	case e := <-errors:
-		expected := &safe_packets.SafeError{Code: packets.AccessViolation, Message: "something about foobar"}
+		expected := &safepackets.SafeError{Code: packets.AccessViolation, Message: "something about foobar"}
 		if !e.Equals(expected) {
 			t.Fatalf("Session sent wrong error packet: got %v, expected %v", e.Bytes(), expected.Bytes())
 		}
@@ -176,19 +176,19 @@ func errorReaderFactory(err error) ReaderFromFilename {
 }
 
 type channelNotifier struct {
-	Out chan<- *safe_packets.SafeData
-	Err chan<- *safe_packets.SafeError
+	Out chan<- *safepackets.SafeData
+	Err chan<- *safepackets.SafeError
 }
 
-func (n *channelNotifier) SendData(data *safe_packets.SafeData) {
+func (n *channelNotifier) SendData(data *safepackets.SafeData) {
 	n.Out <- data
 }
 
-func (n *channelNotifier) SendError(err *safe_packets.SafeError) {
+func (n *channelNotifier) SendError(err *safepackets.SafeError) {
 	n.Err <- err
 }
 
-func outgoingFactory(out chan *safe_packets.SafeData, err chan *safe_packets.SafeError) OutgoingHandlerFromAddr {
+func outgoingFactory(out chan *safepackets.SafeData, err chan *safepackets.SafeError) OutgoingHandlerFromAddr {
 	return func(net.Addr) readsession.OutgoingHandler {
 		return &channelNotifier{
 			Out: out,

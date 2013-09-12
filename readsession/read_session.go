@@ -3,7 +3,7 @@ package readsession
 import (
 	"io"
 
-	"github.com/mark-rushakoff/go_tftpd/safe_packets"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 )
 
 type Config struct {
@@ -13,7 +13,7 @@ type Config struct {
 
 type ReadSession interface {
 	Begin()
-	HandleAck(ack *safe_packets.SafeAck)
+	HandleAck(ack *safepackets.SafeAck)
 	Resend()
 }
 
@@ -22,7 +22,7 @@ type readSession struct {
 	handler OutgoingHandler
 
 	currentBlockNumber uint16
-	currentDataPacket  *safe_packets.SafeData
+	currentDataPacket  *safepackets.SafeData
 
 	dataExhausted bool
 	onFinish      func()
@@ -41,7 +41,7 @@ func (s *readSession) Begin() {
 	s.sendData()
 }
 
-func (s *readSession) HandleAck(ack *safe_packets.SafeAck) {
+func (s *readSession) HandleAck(ack *safepackets.SafeAck) {
 	if s.dataExhausted {
 		s.onFinish()
 		return
@@ -88,5 +88,5 @@ func (s *readSession) nextBlock() {
 	dataBytes = dataBytes[:bytesRead]
 
 	s.currentBlockNumber++
-	s.currentDataPacket = safe_packets.NewSafeData(s.currentBlockNumber, dataBytes)
+	s.currentDataPacket = safepackets.NewSafeData(s.currentBlockNumber, dataBytes)
 }
