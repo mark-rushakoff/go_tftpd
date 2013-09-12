@@ -1,4 +1,4 @@
-package timeout_controller
+package timeoutcontroller
 
 type mockTimer struct {
 	elapsed chan bool

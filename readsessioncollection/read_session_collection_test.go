@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/mark-rushakoff/go_tftpd/testhelpers"
-	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
+	"github.com/mark-rushakoff/go_tftpd/timeoutcontroller"
 )
 
 func TestAddSessionMakesFetchable(t *testing.T) {
-	session := &timeout_controller.MockTimeoutController{}
+	session := &timeoutcontroller.MockTimeoutController{}
 	addr := testhelpers.MakeMockAddr("fake_network", "a")
 
 	manager := NewReadSessionCollection()
@@ -24,7 +24,7 @@ func TestAddSessionMakesFetchable(t *testing.T) {
 }
 
 func TestRemoveMakesFetchFail(t *testing.T) {
-	session := &timeout_controller.MockTimeoutController{}
+	session := &timeoutcontroller.MockTimeoutController{}
 	addr := testhelpers.MakeMockAddr("fake_network", "a")
 
 	manager := NewReadSessionCollection()

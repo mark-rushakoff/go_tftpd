@@ -9,7 +9,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
-	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
+	"github.com/mark-rushakoff/go_tftpd/timeoutcontroller"
 )
 
 type ReaderFromFilename func(filename string) (io.Reader, error)
@@ -59,7 +59,7 @@ func (c *SessionCreator) Create(r *safetyfilter.IncomingSafeReadRequest) {
 
 	session := readsession.NewReadSession(sessionConfig, c.outgoingHandlerFactory(r.Addr), removeSession)
 
-	timeoutController := timeout_controller.NewTimeoutController(c.timeout, c.tryLimit, session, removeSession)
+	timeoutController := timeoutcontroller.NewTimeoutController(c.timeout, c.tryLimit, session, removeSession)
 
 	c.readSessions.Add(timeoutController, r.Addr)
 	go timeoutController.BeginSession()

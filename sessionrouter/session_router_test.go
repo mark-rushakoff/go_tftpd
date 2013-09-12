@@ -7,7 +7,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 	"github.com/mark-rushakoff/go_tftpd/testhelpers"
-	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
+	"github.com/mark-rushakoff/go_tftpd/timeoutcontroller"
 )
 
 func TestRouteAckRoutes(t *testing.T) {
@@ -16,7 +16,7 @@ func TestRouteAckRoutes(t *testing.T) {
 	fakeAddr := testhelpers.MakeMockAddr("fake_network", "a")
 
 	acks := make(chan *safepackets.SafeAck, 1)
-	timeoutController := &timeout_controller.MockTimeoutController{
+	timeoutController := &timeoutcontroller.MockTimeoutController{
 		HandleAckHandler: func(ack *safepackets.SafeAck) {
 			acks <- ack
 		},
