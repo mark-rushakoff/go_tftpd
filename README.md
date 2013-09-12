@@ -24,7 +24,7 @@ To summarize the principles used in designing this TFTP daemon:
   * As small as reasonably possible so that they can easily be unit tested
   * Avoid concurrency; prefer callbacks and interfaces (it's always easy to add concurrency later in Go)
   * Avoid creating other domain objects; prefer other objects to be passed as arguments (this simplifies unit testing)
-* "Glue" code (e.g. [SafePacketProvider](safe_packet_provider/safe_packet_provider.go)):
+* "Glue" code (e.g. [SafePacketProvider](safepacketprovider/safe_packet_provider.go)):
   * Concurrency encouraged where appropriate
   * Should accept minimal arguments necessary to create all needed domain objects
 * The main function:
