@@ -1,4 +1,4 @@
-package session_creator
+package sessioncreator
 
 import (
 	"errors"

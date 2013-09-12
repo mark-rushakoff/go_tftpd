@@ -11,7 +11,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/responseagent"
 	"github.com/mark-rushakoff/go_tftpd/safepacketprovider"
-	"github.com/mark-rushakoff/go_tftpd/session_creator"
+	"github.com/mark-rushakoff/go_tftpd/sessioncreator"
 	"github.com/mark-rushakoff/go_tftpd/session_router"
 )
 
@@ -36,7 +36,7 @@ func (c *ServerConfig) Serve() {
 	}()
 
 	sessions := readsessioncollection.NewReadSessionCollection()
-	sessionCreator := session_creator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.DefaultTimeout, c.TryLimit)
+	sessionCreator := sessioncreator.NewSessionCreator(sessions, readerFromFilename, c.outgoingHandlerFromAddr(), c.DefaultTimeout, c.TryLimit)
 	sessionRouter := session_router.NewSessionRouter(sessions)
 
 	for {
@@ -64,7 +64,7 @@ func readerFromFilename(filename string) (io.Reader, error) {
 	return file, nil
 }
 
-func (c *ServerConfig) outgoingHandlerFromAddr() session_creator.OutgoingHandlerFromAddr {
+func (c *ServerConfig) outgoingHandlerFromAddr() sessioncreator.OutgoingHandlerFromAddr {
 	return func(addr net.Addr) readsession.OutgoingHandler {
 		return responseagent.NewResponseAgent(c.PacketConn, addr)
 	}
