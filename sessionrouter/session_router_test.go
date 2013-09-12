@@ -1,4 +1,4 @@
-package session_router
+package sessionrouter
 
 import (
 	"testing"

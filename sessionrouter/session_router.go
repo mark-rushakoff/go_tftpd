@@ -1,4 +1,4 @@
-package session_router
+package sessionrouter
 
 import (
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
