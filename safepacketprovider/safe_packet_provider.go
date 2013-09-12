@@ -4,26 +4,26 @@ import (
 	"net"
 
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 )
 
 type SafePacketProvider struct {
-	incomingSafeAck         chan *safety_filter.IncomingSafeAck
-	incomingSafeReadRequest chan *safety_filter.IncomingSafeReadRequest
-	incomingInvalidMessage  chan *safety_filter.IncomingInvalidMessage
+	incomingSafeAck         chan *safetyfilter.IncomingSafeAck
+	incomingSafeReadRequest chan *safetyfilter.IncomingSafeReadRequest
+	incomingInvalidMessage  chan *safetyfilter.IncomingInvalidMessage
 	requestAgent            *requestagent.RequestAgent
 }
 
 func NewSafePacketProvider(conn net.PacketConn) *SafePacketProvider {
-	ackChan := make(chan *safety_filter.IncomingSafeAck, 3)
-	readChan := make(chan *safety_filter.IncomingSafeReadRequest, 3)
-	invalidChan := make(chan *safety_filter.IncomingInvalidMessage, 3)
+	ackChan := make(chan *safetyfilter.IncomingSafeAck, 3)
+	readChan := make(chan *safetyfilter.IncomingSafeReadRequest, 3)
+	invalidChan := make(chan *safetyfilter.IncomingInvalidMessage, 3)
 	safeRequestHandler := &safeRequestHandler{
 		safeAck:            ackChan,
 		safeReadRequest:    readChan,
 		safeInvalidMessage: invalidChan,
 	}
-	safetyFilter := safety_filter.MakeSafetyFilter(safeRequestHandler)
+	safetyFilter := safetyfilter.MakeSafetyFilter(safeRequestHandler)
 	requestHandler := &requestHandler{
 		safetyFilter: safetyFilter,
 	}
@@ -37,15 +37,15 @@ func NewSafePacketProvider(conn net.PacketConn) *SafePacketProvider {
 	}
 }
 
-func (p *SafePacketProvider) IncomingSafeAck() <-chan *safety_filter.IncomingSafeAck {
+func (p *SafePacketProvider) IncomingSafeAck() <-chan *safetyfilter.IncomingSafeAck {
 	return p.incomingSafeAck
 }
 
-func (p *SafePacketProvider) IncomingSafeReadRequest() <-chan *safety_filter.IncomingSafeReadRequest {
+func (p *SafePacketProvider) IncomingSafeReadRequest() <-chan *safetyfilter.IncomingSafeReadRequest {
 	return p.incomingSafeReadRequest
 }
 
-func (p *SafePacketProvider) IncomingInvalidMessage() <-chan *safety_filter.IncomingInvalidMessage {
+func (p *SafePacketProvider) IncomingInvalidMessage() <-chan *safetyfilter.IncomingInvalidMessage {
 	return p.incomingInvalidMessage
 }
 

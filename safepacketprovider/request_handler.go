@@ -2,11 +2,11 @@ package safepacketprovider
 
 import (
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 )
 
 type requestHandler struct {
-	safetyFilter *safety_filter.SafetyFilter
+	safetyFilter *safetyfilter.SafetyFilter
 }
 
 func (h *requestHandler) HandleAck(a *requestagent.IncomingAck) {

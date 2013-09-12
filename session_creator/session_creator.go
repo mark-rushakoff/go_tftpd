@@ -8,7 +8,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
 
@@ -39,7 +39,7 @@ func NewSessionCreator(
 	}
 }
 
-func (c *SessionCreator) Create(r *safety_filter.IncomingSafeReadRequest) {
+func (c *SessionCreator) Create(r *safetyfilter.IncomingSafeReadRequest) {
 	reader, err := c.readerFactory(r.Read.Filename)
 	if err != nil {
 		handler := c.outgoingHandlerFactory(r.Addr)

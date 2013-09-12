@@ -1,4 +1,4 @@
-package safety_filter
+package safetyfilter
 
 type SafeRequestHandler interface {
 	HandleSafeAck(*IncomingSafeAck)

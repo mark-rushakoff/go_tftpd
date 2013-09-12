@@ -1,4 +1,4 @@
-package safety_filter
+package safetyfilter
 
 import (
 	"testing"

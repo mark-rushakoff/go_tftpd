@@ -11,14 +11,14 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
 
 var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a")
 
 func TestCreateAddsNewSessionToCollection(t *testing.T) {
-	readRequest := &safety_filter.IncomingSafeReadRequest{
+	readRequest := &safetyfilter.IncomingSafeReadRequest{
 		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}
@@ -75,7 +75,7 @@ func TestCreateAddsNewSessionToCollection(t *testing.T) {
 }
 
 func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
-	readRequest := &safety_filter.IncomingSafeReadRequest{
+	readRequest := &safetyfilter.IncomingSafeReadRequest{
 		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}
@@ -123,7 +123,7 @@ func TestSuccessfulFinishRemovesSessionFromCollection(t *testing.T) {
 }
 
 func TestErrorCreatingReaderCausesErrorMessage(t *testing.T) {
-	readRequest := &safety_filter.IncomingSafeReadRequest{
+	readRequest := &safetyfilter.IncomingSafeReadRequest{
 		Read: safepackets.NewSafeReadRequest("foobar", safepackets.NetAscii),
 		Addr: fakeAddr,
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 	"github.com/mark-rushakoff/go_tftpd/timeout_controller"
 )
@@ -23,7 +23,7 @@ func TestRouteAckRoutes(t *testing.T) {
 	}
 	sessions.Add(timeoutController, fakeAddr)
 
-	router.RouteAck(&safety_filter.IncomingSafeAck{
+	router.RouteAck(&safetyfilter.IncomingSafeAck{
 		Addr: fakeAddr,
 		Ack:  safepackets.NewSafeAck(8),
 	})
@@ -43,7 +43,7 @@ func TestRouteAckToMissingSessionDoesNotPanic(t *testing.T) {
 	router := NewSessionRouter(sessions)
 	fakeAddr := test_helpers.MakeMockAddr("fake_network", "a")
 
-	router.RouteAck(&safety_filter.IncomingSafeAck{
+	router.RouteAck(&safetyfilter.IncomingSafeAck{
 		Addr: fakeAddr,
 		Ack:  safepackets.NewSafeAck(8),
 	})

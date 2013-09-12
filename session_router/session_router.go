@@ -2,7 +2,7 @@ package session_router
 
 import (
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 )
 
 type SessionRouter struct {
@@ -15,7 +15,7 @@ func NewSessionRouter(readSessions *readsessioncollection.ReadSessionCollection)
 	}
 }
 
-func (r *SessionRouter) RouteAck(ack *safety_filter.IncomingSafeAck) {
+func (r *SessionRouter) RouteAck(ack *safetyfilter.IncomingSafeAck) {
 	session, found := r.readSessions.Fetch(ack.Addr)
 	if !found {
 		return

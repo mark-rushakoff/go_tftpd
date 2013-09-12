@@ -1,23 +1,23 @@
 package safepacketprovider
 
 import (
-	"github.com/mark-rushakoff/go_tftpd/safety_filter"
+	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 )
 
 type safeRequestHandler struct {
-	safeAck            chan<- *safety_filter.IncomingSafeAck
-	safeReadRequest    chan<- *safety_filter.IncomingSafeReadRequest
-	safeInvalidMessage chan<- *safety_filter.IncomingInvalidMessage
+	safeAck            chan<- *safetyfilter.IncomingSafeAck
+	safeReadRequest    chan<- *safetyfilter.IncomingSafeReadRequest
+	safeInvalidMessage chan<- *safetyfilter.IncomingInvalidMessage
 }
 
-func (h *safeRequestHandler) HandleSafeAck(a *safety_filter.IncomingSafeAck) {
+func (h *safeRequestHandler) HandleSafeAck(a *safetyfilter.IncomingSafeAck) {
 	h.safeAck <- a
 }
 
-func (h *safeRequestHandler) HandleSafeReadRequest(r *safety_filter.IncomingSafeReadRequest) {
+func (h *safeRequestHandler) HandleSafeReadRequest(r *safetyfilter.IncomingSafeReadRequest) {
 	h.safeReadRequest <- r
 }
 
-func (h *safeRequestHandler) HandleError(i *safety_filter.IncomingInvalidMessage) {
+func (h *safeRequestHandler) HandleError(i *safetyfilter.IncomingInvalidMessage) {
 	h.safeInvalidMessage <- i
 }
