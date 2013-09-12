@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
+	"github.com/mark-rushakoff/go_tftpd/testhelpers"
 )
 
 func TestNewResponseAgent(t *testing.T) {
@@ -78,13 +78,13 @@ func TestDataSerializes(t *testing.T) {
 	}
 }
 
-func buildAgentThatWrites(b []byte) (agent *ResponseAgent, conn *test_helpers.MockPacketConn, addr net.Addr) {
-	conn = &test_helpers.MockPacketConn{
+func buildAgentThatWrites(b []byte) (agent *ResponseAgent, conn *testhelpers.MockPacketConn, addr net.Addr) {
+	conn = &testhelpers.MockPacketConn{
 		WriteToFunc: func(b []byte, a net.Addr) (int, error) {
 			return len(b), nil
 		},
 	}
-	addr = &test_helpers.MockAddr{}
+	addr = &testhelpers.MockAddr{}
 	agent = NewResponseAgent(conn, addr)
 
 	return

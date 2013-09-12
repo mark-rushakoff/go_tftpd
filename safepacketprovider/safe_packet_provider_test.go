@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
+	"github.com/mark-rushakoff/go_tftpd/testhelpers"
 )
 
-var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a")
+var fakeAddr = testhelpers.MakeMockAddr("fake_network", "a")
 
 func TestCanProvideSafeAck(t *testing.T) {
 	const blockNum uint16 = 1234
-	packetConn := test_helpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
+	packetConn := testhelpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
 		uint16(packets.AckOpcode),
 		uint16(blockNum),
 	})
@@ -36,7 +36,7 @@ func TestCanProvideSafeAck(t *testing.T) {
 
 func TestCanProvideSafeReadRequest(t *testing.T) {
 	const blockNum uint16 = 1234
-	packetConn := test_helpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
+	packetConn := testhelpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
 		uint16(packets.ReadOpcode),
 		"foobar",
 		byte(0),
@@ -59,7 +59,7 @@ func TestCanProvideSafeReadRequest(t *testing.T) {
 }
 
 func TestCanProvideInvalidMessage(t *testing.T) {
-	packetConn := test_helpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
+	packetConn := testhelpers.NewMockPacketConnWithBytes(t, fakeAddr, []interface{}{
 		uint16(packets.ReadOpcode),
 		"foobar",
 		byte(0),

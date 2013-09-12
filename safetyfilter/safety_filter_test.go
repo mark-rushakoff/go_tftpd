@@ -7,10 +7,10 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
 	"github.com/mark-rushakoff/go_tftpd/safepackets"
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
+	"github.com/mark-rushakoff/go_tftpd/testhelpers"
 )
 
-var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a fake addr")
+var fakeAddr = testhelpers.MakeMockAddr("fake_network", "a fake addr")
 
 func TestConvertsAcksToSafeAcks(t *testing.T) {
 	incomingAcks := make(chan *IncomingSafeAck, 1)

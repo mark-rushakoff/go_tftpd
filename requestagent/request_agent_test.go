@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/test_helpers"
+	"github.com/mark-rushakoff/go_tftpd/testhelpers"
 )
 
-var fakeAddr = test_helpers.MakeMockAddr("fake_network", "a fake addr")
+var fakeAddr = testhelpers.MakeMockAddr("fake_network", "a fake addr")
 
 func TestAcknowledgementPacketCausesAck(t *testing.T) {
 	const blockNum uint16 = 1234
@@ -393,7 +393,7 @@ func invalidPacketCausesInvalidTransmission(t *testing.T, testCase invalidPacket
 }
 
 func agentWithIncomingPacket(t *testing.T, handler RequestHandler, data []interface{}) *RequestAgent {
-	conn := &test_helpers.MockPacketConn{
+	conn := &testhelpers.MockPacketConn{
 		ReadFromFunc: buildReaderFunc(t, data),
 	}
 
