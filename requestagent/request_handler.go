@@ -1,4 +1,4 @@
-package request_agent
+package requestagent
 
 type RequestHandler interface {
 	HandleAck(*IncomingAck)

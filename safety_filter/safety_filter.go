@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/request_agent"
+	"github.com/mark-rushakoff/go_tftpd/requestagent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 )
 
@@ -37,7 +37,7 @@ type IncomingInvalidMessage struct {
 	Addr         net.Addr
 }
 
-func (f *SafetyFilter) HandleAck(incomingAck *request_agent.IncomingAck) {
+func (f *SafetyFilter) HandleAck(incomingAck *requestagent.IncomingAck) {
 	safeAck := &IncomingSafeAck{
 		Addr: incomingAck.Addr,
 		Ack:  safe_packets.NewSafeAck(incomingAck.Ack.BlockNumber),
@@ -45,7 +45,7 @@ func (f *SafetyFilter) HandleAck(incomingAck *request_agent.IncomingAck) {
 	f.Handler.HandleSafeAck(safeAck)
 }
 
-func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *request_agent.IncomingReadRequest) {
+func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *requestagent.IncomingReadRequest) {
 	var mode safe_packets.ReadWriteMode
 	switch strings.ToLower(incomingReadRequest.Read.Mode) {
 	case "netascii":

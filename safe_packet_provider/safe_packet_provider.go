@@ -3,7 +3,7 @@ package safe_packet_provider
 import (
 	"net"
 
-	"github.com/mark-rushakoff/go_tftpd/request_agent"
+	"github.com/mark-rushakoff/go_tftpd/requestagent"
 	"github.com/mark-rushakoff/go_tftpd/safety_filter"
 )
 
@@ -11,7 +11,7 @@ type SafePacketProvider struct {
 	incomingSafeAck         chan *safety_filter.IncomingSafeAck
 	incomingSafeReadRequest chan *safety_filter.IncomingSafeReadRequest
 	incomingInvalidMessage  chan *safety_filter.IncomingInvalidMessage
-	requestAgent            *request_agent.RequestAgent
+	requestAgent            *requestagent.RequestAgent
 }
 
 func NewSafePacketProvider(conn net.PacketConn) *SafePacketProvider {
@@ -27,7 +27,7 @@ func NewSafePacketProvider(conn net.PacketConn) *SafePacketProvider {
 	requestHandler := &requestHandler{
 		safetyFilter: safetyFilter,
 	}
-	requestAgent := request_agent.NewRequestAgent(conn, requestHandler)
+	requestAgent := requestagent.NewRequestAgent(conn, requestHandler)
 
 	return &SafePacketProvider{
 		incomingSafeAck:         ackChan,

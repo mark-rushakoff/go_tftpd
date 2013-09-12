@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
-	"github.com/mark-rushakoff/go_tftpd/request_agent"
+	"github.com/mark-rushakoff/go_tftpd/requestagent"
 	"github.com/mark-rushakoff/go_tftpd/safe_packets"
 	"github.com/mark-rushakoff/go_tftpd/test_helpers"
 )
@@ -26,7 +26,7 @@ func TestConvertsAcksToSafeAcks(t *testing.T) {
 		BlockNumber: expectedBlockNumber,
 	}
 
-	ack := &request_agent.IncomingAck{
+	ack := &requestagent.IncomingAck{
 		Ack:  ackPacket,
 		Addr: fakeAddr,
 	}
@@ -70,7 +70,7 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 		Mode:     modeString,
 	}
 
-	fakeIncomingReadRequest := &request_agent.IncomingReadRequest{
+	fakeIncomingReadRequest := &requestagent.IncomingReadRequest{
 		Read: fakeIncomingReadPacket,
 		Addr: fakeAddr,
 	}
@@ -119,7 +119,7 @@ func TestRejectsReadRequestWithInvalidMode(t *testing.T) {
 		Mode:     modeString,
 	}
 
-	fakeIncomingReadRequest := &request_agent.IncomingReadRequest{
+	fakeIncomingReadRequest := &requestagent.IncomingReadRequest{
 		Read: fakeIncomingReadPacket,
 		Addr: fakeAddr,
 	}
