@@ -1,4 +1,4 @@
-package safe_packet_provider
+package safepacketprovider
 
 import (
 	"github.com/mark-rushakoff/go_tftpd/requestagent"

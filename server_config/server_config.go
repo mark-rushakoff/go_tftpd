@@ -10,7 +10,7 @@ import (
 	"github.com/mark-rushakoff/go_tftpd/readsession"
 	"github.com/mark-rushakoff/go_tftpd/readsessioncollection"
 	"github.com/mark-rushakoff/go_tftpd/responseagent"
-	"github.com/mark-rushakoff/go_tftpd/safe_packet_provider"
+	"github.com/mark-rushakoff/go_tftpd/safepacketprovider"
 	"github.com/mark-rushakoff/go_tftpd/session_creator"
 	"github.com/mark-rushakoff/go_tftpd/session_router"
 )
@@ -27,7 +27,7 @@ type ServerConfig struct {
 }
 
 func (c *ServerConfig) Serve() {
-	provider := safe_packet_provider.NewSafePacketProvider(c.PacketConn)
+	provider := safepacketprovider.NewSafePacketProvider(c.PacketConn)
 
 	go func() {
 		for {
