@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mark-rushakoff/go_tftpd/server_config"
+	"github.com/mark-rushakoff/go_tftpd/serverconfig"
 )
 
 var host string
