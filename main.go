@@ -45,7 +45,7 @@ func main() {
 		}
 	}()
 
-	serverConfig := server_config.ServerConfig{
+	serverConfig := serverconfig.ServerConfig{
 		PacketConn:     udpConn,
 		DefaultTimeout: time.Second,
 		TryLimit:       2,
