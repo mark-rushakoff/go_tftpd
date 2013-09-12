@@ -27,11 +27,11 @@ func TestRestartSendsToElapsedWhenFinished(t *testing.T) {
 }
 
 func TestRestartRestartsTimer(t *testing.T) {
-	timer := newTimer(3 * time.Millisecond)
+	timer := newTimer(10 * time.Millisecond)
 
 	timer.Restart()
 
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(7 * time.Millisecond)
 	select {
 	case <-timer.Elapsed():
 		t.Fatalf("Timer elapsed too early")
@@ -43,14 +43,14 @@ func TestRestartRestartsTimer(t *testing.T) {
 	select {
 	case <-timer.Elapsed():
 		t.Fatalf("Timer should not have elapsed yet")
-	case <-time.After(2 * time.Millisecond):
+	case <-time.After(6 * time.Millisecond):
 		// ok
 	}
 
 	select {
 	case <-timer.Elapsed():
 		// ok
-	case <-time.After(2 * time.Millisecond):
+	case <-time.After(5 * time.Millisecond):
 		t.Fatalf("Timer should have elapsed by now")
 	}
 }
