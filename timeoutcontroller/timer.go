@@ -1,6 +1,7 @@
 package timeoutcontroller
 
 import (
+	"sync"
 	"time"
 )
 
@@ -11,18 +12,23 @@ type timer interface {
 }
 
 type manualTimer struct {
-	duration time.Duration
-	elapsed  chan bool
-	restart  chan bool
-	destroy  chan bool
+	duration   time.Duration
+	waitFactor uint
+	mutex      sync.RWMutex
+
+	elapsed chan bool
+	restart chan bool
+	destroy chan bool
 }
 
 func newTimer(duration time.Duration) timer {
 	t := &manualTimer{
-		duration: duration,
-		restart:  make(chan bool, 1),
-		elapsed:  make(chan bool, 1),
-		destroy:  make(chan bool, 1),
+		duration:   duration,
+		waitFactor: 1,
+
+		restart: make(chan bool, 1),
+		elapsed: make(chan bool, 1),
+		destroy: make(chan bool, 1),
 	}
 
 	go t.watch()
@@ -36,6 +42,10 @@ func (t *manualTimer) Elapsed() <-chan bool {
 
 func (t *manualTimer) Restart() {
 	t.restart <- true
+
+	t.mutex.Lock()
+	t.waitFactor = 1
+	t.mutex.Unlock()
 }
 
 func (t *manualTimer) Destroy() {
@@ -49,9 +59,16 @@ func (t *manualTimer) watch() {
 	}
 
 	for {
+		t.mutex.RLock()
+		duration := time.Duration(t.waitFactor) * t.duration
+		t.mutex.RUnlock()
+
 		select {
-		case <-time.After(t.duration):
+		case <-time.After(duration):
 			t.elapsed <- true
+			t.mutex.Lock()
+			t.waitFactor *= 2
+			t.mutex.Unlock()
 		case <-t.restart:
 			// just restart the loop
 		case <-t.destroy:

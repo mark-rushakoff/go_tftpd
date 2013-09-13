@@ -55,6 +55,41 @@ func TestRestartRestartsTimer(t *testing.T) {
 	}
 }
 
+func TestElapseDoublesUntilRestart(t *testing.T) {
+	timer := newTimer(3 * time.Millisecond)
+	timer.Restart()
+	start := time.Now()
+
+	var i uint
+	for i = 0; i < 4; i++ {
+		select {
+		case <-timer.Elapsed():
+			duration := time.Since(start)
+			if duration < (3*(1<<i))*time.Millisecond {
+				t.Fatalf("Elapsed too quickly (%v) on iteration %v", duration, i)
+			} else if duration > (7*(1<<i))*time.Millisecond {
+				t.Fatalf("Elapsed but took too long (%v) on iteration %v", duration, i)
+			}
+		case <-time.After((10 * (1 << i)) * time.Millisecond):
+			t.Fatalf("Took too long to elapse on iteration %v", i)
+		}
+	}
+
+	timer.Restart()
+	start = time.Now()
+	select {
+	case <-timer.Elapsed():
+		duration := time.Since(start)
+		if duration < 3*time.Millisecond {
+			t.Fatalf("Elapsed too quickly (%v) on iteration %v", duration, i)
+		} else if duration > (7)*time.Millisecond {
+			t.Fatalf("Elapsed but took too long (%v) on iteration %v", duration, i)
+		}
+	case <-time.After((10) * time.Millisecond):
+		t.Fatalf("Took too long to elapse on iteration %v", i)
+	}
+}
+
 func TestDestroyDoesNotElapseTimer(t *testing.T) {
 	timer := newTimer(3 * time.Millisecond)
 
