@@ -292,3 +292,51 @@ func TestFinishesInMultiplePackets(t *testing.T) {
 		t.Errorf("Expected session to be finished after last ack arrived")
 	}
 }
+
+func TestVeryOldAckCausesError(t *testing.T) {
+	errorChan := make(chan *safepackets.SafeError, 1)
+	finished := make(chan bool, 1)
+	handler := &PluggableHandler{
+		SendDataHandler: func(*safepackets.SafeData) {
+		},
+		SendErrorHandler: func(e *safepackets.SafeError) {
+			errorChan <- e
+		},
+	}
+	config := &Config{
+		Reader:    strings.NewReader("0102030405"),
+		BlockSize: 2,
+	}
+	session := NewReadSession(config, handler, func() {
+		finished <- true
+	})
+	session.Begin()
+
+	session.HandleAck(safepackets.NewSafeAck(1))
+	session.HandleAck(safepackets.NewSafeAck(2))
+	session.HandleAck(safepackets.NewSafeAck(3))
+
+	select {
+	case <-errorChan:
+		t.Fatalf("Error sent too early")
+	default:
+		// ok
+	}
+
+	session.HandleAck(safepackets.NewSafeAck(1))
+	select {
+	case e := <-errorChan:
+		if !e.Equals(safepackets.NewAncientAckError()) {
+			t.Fatalf("Received incorrect error")
+		}
+	default:
+		t.Fatalf("Error not sent when expected")
+	}
+
+	select {
+	case <-finished:
+		// ok
+	default:
+		t.Fatalf("Session should have been marked as finished")
+	}
+}

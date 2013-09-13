@@ -26,6 +26,13 @@ func NewAccessViolationError(message string) *SafeError {
 	}
 }
 
+func NewAncientAckError() *SafeError {
+	return &SafeError{
+		Code:    packets.Undefined,
+		Message: "Received unexpectedly old Ack",
+	}
+}
+
 func (e *SafeError) Equals(other *SafeError) bool {
 	return e.Code == other.Code && e.Message == other.Message
 }

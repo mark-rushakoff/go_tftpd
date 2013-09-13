@@ -41,7 +41,7 @@ This implementation aims to be standards-compliant, following the guidelines set
 - [x] Data packets re-sent if no ack received in time
 - [x] Send error for requests to files that do not exist
 - [x] Send error for requests to files that exist but cannot be opened
-- [ ] Send error for very old ack
+- [x] Send error for very old ack
 - [ ] Send error for file that has an error partway through reading
 - [x] Handle netascii read requests
 - [ ] Handle octet read requests

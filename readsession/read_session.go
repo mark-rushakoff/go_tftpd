@@ -53,7 +53,8 @@ func (s *readSession) HandleAck(ack *safepackets.SafeAck) {
 	} else if ack.BlockNumber == s.currentBlockNumber-1 {
 		s.sendData()
 	} else {
-		panic("A very old ack is currently undefined behavior")
+		s.handler.SendError(safepackets.NewAncientAckError())
+		s.onFinish()
 	}
 }
 
