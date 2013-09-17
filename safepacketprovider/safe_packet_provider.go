@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
+	"github.com/mark-rushakoff/go_tftpd/safepackets"
 	"github.com/mark-rushakoff/go_tftpd/safetyfilter"
 )
 
@@ -23,7 +24,7 @@ func NewSafePacketProvider(conn net.PacketConn) *SafePacketProvider {
 		safeReadRequest:    readChan,
 		safeInvalidMessage: invalidChan,
 	}
-	safetyFilter := safetyfilter.MakeSafetyFilter(safeRequestHandler)
+	safetyFilter := safetyfilter.MakeSafetyFilter(safepackets.NewConverter(), safeRequestHandler)
 	requestHandler := &requestHandler{
 		safetyFilter: safetyFilter,
 	}

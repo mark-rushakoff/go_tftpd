@@ -1,7 +1,5 @@
 package safepackets
 
-import ()
-
 type ReadWriteMode string
 
 const (

@@ -2,7 +2,6 @@ package safetyfilter
 
 import (
 	"net"
-	"strings"
 
 	"github.com/mark-rushakoff/go_tftpd/packets"
 	"github.com/mark-rushakoff/go_tftpd/requestagent"
@@ -12,12 +11,14 @@ import (
 // SafetyFilter converts potentially unsafe messages from a RequestAgent into guaranteed-safe messages.
 // Start it by calling Filter.
 type SafetyFilter struct {
-	Handler SafeRequestHandler
+	converter safepackets.Converter
+	handler   SafeRequestHandler
 }
 
-func MakeSafetyFilter(handler SafeRequestHandler) *SafetyFilter {
+func MakeSafetyFilter(converter safepackets.Converter, handler SafeRequestHandler) *SafetyFilter {
 	return &SafetyFilter{
-		Handler: handler,
+		converter: converter,
+		handler:   handler,
 	}
 }
 
@@ -40,34 +41,25 @@ type IncomingInvalidMessage struct {
 func (f *SafetyFilter) HandleAck(incomingAck *requestagent.IncomingAck) {
 	safeAck := &IncomingSafeAck{
 		Addr: incomingAck.Addr,
-		Ack:  safepackets.NewSafeAck(incomingAck.Ack.BlockNumber),
+		Ack:  f.converter.FromAck(incomingAck.Ack),
 	}
-	f.Handler.HandleSafeAck(safeAck)
+	f.handler.HandleSafeAck(safeAck)
 }
 
 func (f *SafetyFilter) HandleReadRequest(incomingReadRequest *requestagent.IncomingReadRequest) {
-	var mode safepackets.ReadWriteMode
-	switch strings.ToLower(incomingReadRequest.Read.Mode) {
-	case "netascii":
-		mode = safepackets.NetAscii
-		// TODO: handle and test octet case
-	default:
-		f.Handler.HandleError(&IncomingInvalidMessage{
-			ErrorCode:    packets.Undefined,
-			ErrorMessage: "Invalid mode string",
+	safeReadRequestPacket, err := f.converter.FromReadRequest(incomingReadRequest.Read)
+	if err != nil {
+		f.handler.HandleError(&IncomingInvalidMessage{
+			ErrorCode:    err.Code(),
+			ErrorMessage: err.Error(),
 			Addr:         incomingReadRequest.Addr,
 		})
 		return
-	}
-
-	safeReadRequestPacket := &safepackets.SafeReadRequest{
-		Filename: incomingReadRequest.Read.Filename,
-		Mode:     mode,
 	}
 
 	safeReadRequest := &IncomingSafeReadRequest{
 		Read: safeReadRequestPacket,
 		Addr: incomingReadRequest.Addr,
 	}
-	f.Handler.HandleSafeReadRequest(safeReadRequest)
+	f.handler.HandleSafeReadRequest(safeReadRequest)
 }

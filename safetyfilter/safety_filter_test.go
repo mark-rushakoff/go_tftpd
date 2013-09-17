@@ -20,10 +20,19 @@ func TestConvertsAcksToSafeAcks(t *testing.T) {
 		},
 	}
 
-	expectedBlockNumber := uint16(500)
-
 	ackPacket := &packets.Ack{
-		BlockNumber: expectedBlockNumber,
+		BlockNumber: 500,
+	}
+
+	fakeSafeAck := safepackets.NewSafeAck(500)
+	fakeConverter := &safepackets.PluggableConverter{
+		FromAckHandler: func(ack *packets.Ack) *safepackets.SafeAck {
+			if ack != ackPacket {
+				t.Fatalf("fakeConverter called with unexpected argument")
+			}
+
+			return fakeSafeAck
+		},
 	}
 
 	ack := &requestagent.IncomingAck{
@@ -31,23 +40,17 @@ func TestConvertsAcksToSafeAcks(t *testing.T) {
 		Addr: fakeAddr,
 	}
 
-	MakeSafetyFilter(handler).HandleAck(ack)
+	MakeSafetyFilter(fakeConverter, handler).HandleAck(ack)
 
 	select {
 	case incomingAck := <-incomingAcks:
-		if incomingAck == nil {
-			t.Fatalf("Did not receive Ack")
+		if incomingAck.Ack != fakeSafeAck {
+			t.Fatalf("SafetyFilter did not use ack provided by converter")
 		}
 
-		if incomingAck.Addr.String() != fakeAddr.String() {
-			t.Errorf("Received incorrect addr: %v", incomingAck.Addr)
+		if incomingAck.Addr != fakeAddr {
+			t.Fatalf("SafetyFilter did not use correct addr on incoming ack")
 		}
-
-		actualBlockNumber := incomingAck.Ack.BlockNumber
-		if actualBlockNumber != expectedBlockNumber {
-			t.Errorf("Expected ack with block number %v, but received %v", actualBlockNumber, expectedBlockNumber)
-		}
-
 	case <-time.After(time.Millisecond):
 		t.Fatalf("Did not receive ack in time")
 	}
@@ -61,21 +64,27 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 		},
 	}
 
-	expectedFilename := "foobar"
-	modeString := "netascii"
-	expectedMode := safepackets.NetAscii
-
 	fakeIncomingReadPacket := &packets.ReadRequest{
-		Filename: expectedFilename,
-		Mode:     modeString,
+		Filename: "some file",
+		Mode:     "netascii",
+	}
+
+	fakeSafeRead := safepackets.NewSafeReadRequest("some file", safepackets.NetAscii)
+	fakeConverter := &safepackets.PluggableConverter{
+		FromReadRequestHandler: func(read *packets.ReadRequest) (*safepackets.SafeReadRequest, *safepackets.ConversionError) {
+			if read != fakeIncomingReadPacket {
+				t.Fatalf("fakeConverter called with unexpected argument")
+			}
+
+			return fakeSafeRead, nil
+		},
 	}
 
 	fakeIncomingReadRequest := &requestagent.IncomingReadRequest{
 		Read: fakeIncomingReadPacket,
 		Addr: fakeAddr,
 	}
-
-	MakeSafetyFilter(handler).HandleReadRequest(fakeIncomingReadRequest)
+	MakeSafetyFilter(fakeConverter, handler).HandleReadRequest(fakeIncomingReadRequest)
 
 	select {
 	case incomingRead := <-incomingReadRequests:
@@ -87,14 +96,8 @@ func TestConvertsReadRequestsToSafeReadRequests(t *testing.T) {
 			t.Errorf("Received incorrect addr: %v", incomingRead.Addr)
 		}
 
-		actualFilename := incomingRead.Read.Filename
-		if actualFilename != expectedFilename {
-			t.Errorf("Expected Filename '%v', but received '%v'", actualFilename, expectedFilename)
-		}
-
-		actualMode := incomingRead.Read.Mode
-		if actualMode != expectedMode {
-			t.Errorf("Expected Mode '%v', but received '%v'", actualMode, expectedMode)
+		if incomingRead.Read != fakeSafeRead {
+			t.Fatalf("SafetyFilter did not use read provided by fake converter")
 		}
 
 	case <-time.After(time.Millisecond):
@@ -110,13 +113,9 @@ func TestRejectsReadRequestWithInvalidMode(t *testing.T) {
 		},
 	}
 
-	modeString := "an invalid mode"
-	var expectedCode packets.ErrorCode = packets.Undefined
-	expectedMessage := "Invalid mode string"
-
 	fakeIncomingReadPacket := &packets.ReadRequest{
 		Filename: "foobar",
-		Mode:     modeString,
+		Mode:     "an invalid mode",
 	}
 
 	fakeIncomingReadRequest := &requestagent.IncomingReadRequest{
@@ -124,7 +123,17 @@ func TestRejectsReadRequestWithInvalidMode(t *testing.T) {
 		Addr: fakeAddr,
 	}
 
-	MakeSafetyFilter(handler).HandleReadRequest(fakeIncomingReadRequest)
+	fakeConverter := &safepackets.PluggableConverter{
+		FromReadRequestHandler: func(read *packets.ReadRequest) (*safepackets.SafeReadRequest, *safepackets.ConversionError) {
+			if read != fakeIncomingReadPacket {
+				t.Fatalf("fakeConverter called with unexpected argument")
+			}
+
+			return nil, safepackets.NewConversionError(packets.Undefined, "Invalid mode string")
+		},
+	}
+
+	MakeSafetyFilter(fakeConverter, handler).HandleReadRequest(fakeIncomingReadRequest)
 
 	select {
 	case invalid := <-incomingInvalidMessages:
@@ -136,12 +145,12 @@ func TestRejectsReadRequestWithInvalidMode(t *testing.T) {
 			t.Errorf("Received incorrect addr: %v", invalid.Addr)
 		}
 
-		if invalid.ErrorCode != expectedCode {
-			t.Errorf("Received code %v, expected code %v", invalid.ErrorCode, expectedCode)
+		if invalid.ErrorCode != packets.Undefined {
+			t.Errorf("Received code %v, expected code %v", invalid.ErrorCode, packets.Undefined)
 		}
 
-		if invalid.ErrorMessage != expectedMessage {
-			t.Errorf("Received error message '%v', expected message '%v'", invalid.ErrorMessage, expectedMessage)
+		if invalid.ErrorMessage != "Invalid mode string" {
+			t.Errorf("Received error message '%v', expected message '%v'", invalid.ErrorMessage, "Invalid mode string")
 		}
 
 	case <-time.After(time.Millisecond):
